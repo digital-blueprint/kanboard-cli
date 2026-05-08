@@ -1,0 +1,39 @@
+# ── Build output ─────────────────────────────────────────────────────────────
+/kanboard-cli
+/kanboard-cli-*
+/dist/
+/result
+/result-*
+
+# ── Go ────────────────────────────────────────────────────────────────────────
+# Compiled object files, static/dynamic libraries
+*.o
+*.a
+*.so
+
+# Test cache & coverage
+*.test
+*.out
+coverage.txt
+coverage.html
+
+# ── devenv / direnv ───────────────────────────────────────────────────────────
+.devenv/
+.devenv.flake.nix
+.direnv/
+.envrc.local
+
+# ── Nix ───────────────────────────────────────────────────────────────────────
+.nix-*
+
+# ── Editors ───────────────────────────────────────────────────────────────────
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# ── Secrets / local env ───────────────────────────────────────────────────────
+.env
+.env.*
