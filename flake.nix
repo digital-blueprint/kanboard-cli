@@ -24,11 +24,7 @@
         let pkgs = nixpkgs.legacyPackages.${system}; in {
           default =
             let
-              # Read the version from git tags when building inside a git tree;
-              # fall back to the flake rev when built from an archive.
-              appVersion = if (self ? rev)
-                then builtins.substring 0 8 self.rev
-                else "dev";
+              appVersion = "0.1.0";
               module = "github.com/tu-graz/kanboard-cli";
             in
             pkgs.buildGoModule {
