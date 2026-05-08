@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/olekukonko/tablewriter"
 	"github.com/spf13/cobra"
@@ -31,6 +32,7 @@ func newTaskCmd() *cobra.Command {
 func newTaskListCmd() *cobra.Command {
 	var projectID int
 	var all bool
+	var status, tag, column string
 
 	cmd := &cobra.Command{
 		Use:   "list",
@@ -39,14 +41,32 @@ func newTaskListCmd() *cobra.Command {
 			if projectID == 0 {
 				return fmt.Errorf("--project-id is required")
 			}
-			statusID := 1
 			if all {
-				statusID = 0
+				status = "all"
 			}
-			client := newClient()
-			tasks, err := client.GetAllTasks(projectID, statusID)
+			statusIDs, err := taskStatusIDs(status)
 			if err != nil {
 				return err
+			}
+			client := newClient()
+			tasks, err := getTasksByStatuses(client, projectID, statusIDs)
+			if err != nil {
+				return err
+			}
+
+			if column != "" {
+				columnID, err := resolveColumnID(client, projectID, column)
+				if err != nil {
+					return err
+				}
+				tasks = filterTasksByColumn(tasks, columnID)
+			}
+
+			if tag != "" {
+				tasks, err = filterTasksByTag(client, tasks, tag)
+				if err != nil {
+					return err
+				}
 			}
 
 			if jsonOutput {
@@ -74,7 +94,99 @@ func newTaskListCmd() *cobra.Command {
 	}
 	cmd.Flags().IntVarP(&projectID, "project-id", "p", 0, "Project ID (required)")
 	cmd.Flags().BoolVarP(&all, "all", "a", false, "Include closed/inactive tasks")
+	cmd.Flags().StringVar(&status, "status", "open", "Task status: open, closed, or all")
+	cmd.Flags().StringVar(&tag, "tag", "", "Only include tasks with this tag")
+	cmd.Flags().StringVar(&column, "column", "", "Only include tasks in this column (ID or exact title)")
 	return cmd
+}
+
+func taskStatusIDs(status string) ([]int, error) {
+	switch strings.ToLower(strings.TrimSpace(status)) {
+	case "", "open":
+		return []int{1}, nil
+	case "closed":
+		return []int{0}, nil
+	case "all":
+		return []int{1, 0}, nil
+	default:
+		return nil, fmt.Errorf("invalid --status %q: expected open, closed, or all", status)
+	}
+}
+
+func getTasksByStatuses(client *api.Client, projectID int, statusIDs []int) ([]api.Task, error) {
+	var tasks []api.Task
+	for _, statusID := range statusIDs {
+		statusTasks, err := client.GetAllTasks(projectID, statusID)
+		if err != nil {
+			return nil, err
+		}
+		tasks = append(tasks, statusTasks...)
+	}
+	return tasks, nil
+}
+
+func resolveColumnID(client *api.Client, projectID int, column string) (string, error) {
+	column = strings.TrimSpace(column)
+	if column == "" {
+		return "", fmt.Errorf("--column cannot be empty")
+	}
+	if _, err := strconv.Atoi(column); err == nil {
+		return column, nil
+	}
+
+	columns, err := client.GetColumns(projectID)
+	if err != nil {
+		return "", err
+	}
+	for _, candidate := range columns {
+		if strings.EqualFold(candidate.Title, column) {
+			return candidate.ID.String(), nil
+		}
+	}
+	return "", fmt.Errorf("column %q not found in project %d", column, projectID)
+}
+
+func filterTasksByColumn(tasks []api.Task, columnID string) []api.Task {
+	filtered := tasks[:0]
+	for _, task := range tasks {
+		if task.ColumnID.String() == columnID {
+			filtered = append(filtered, task)
+		}
+	}
+	return filtered
+}
+
+func filterTasksByTag(client *api.Client, tasks []api.Task, tag string) ([]api.Task, error) {
+	tag = strings.ToLower(strings.TrimSpace(tag))
+	if tag == "" {
+		return tasks, nil
+	}
+
+	filtered := tasks[:0]
+	for _, task := range tasks {
+		taskID, err := strconv.Atoi(task.ID.String())
+		if err != nil {
+			return nil, fmt.Errorf("invalid task ID %q: %w", task.ID.String(), err)
+		}
+		tags, err := client.GetTaskTags(taskID)
+		if err != nil {
+			return nil, err
+		}
+		if taskHasTag(tags, tag) {
+			task.Tags = tags
+			filtered = append(filtered, task)
+		}
+	}
+	return filtered, nil
+}
+
+func taskHasTag(tags map[string]string, tag string) bool {
+	for _, value := range tags {
+		if strings.EqualFold(value, tag) {
+			return true
+		}
+	}
+	return false
 }
 
 func newTaskGetCmd() *cobra.Command {

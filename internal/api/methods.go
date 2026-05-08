@@ -16,21 +16,22 @@ type Project struct {
 
 // Task represents a Kanboard task.
 type Task struct {
-	ID           json.Number  `json:"id"`
-	Title        string       `json:"title"`
-	Description  string       `json:"description"`
-	ProjectID    json.Number  `json:"project_id"`
-	ColumnID     json.Number  `json:"column_id"`
-	SwimlaneID   json.Number  `json:"swimlane_id"`
-	OwnerID      json.Number  `json:"owner_id"`
-	IsActive     json.Number  `json:"is_active"`
-	Position     json.Number  `json:"position"`
-	ColorID      string       `json:"color_id"`
-	DateDue      FlexibleTime `json:"date_due"`
-	DateStarted  FlexibleTime `json:"date_started"`
-	DateCreation FlexibleTime `json:"date_creation"`
-	DateMoved    FlexibleTime `json:"date_moved"`
-	Reference    string       `json:"reference"`
+	ID           json.Number       `json:"id"`
+	Title        string            `json:"title"`
+	Description  string            `json:"description"`
+	ProjectID    json.Number       `json:"project_id"`
+	ColumnID     json.Number       `json:"column_id"`
+	SwimlaneID   json.Number       `json:"swimlane_id"`
+	OwnerID      json.Number       `json:"owner_id"`
+	IsActive     json.Number       `json:"is_active"`
+	Position     json.Number       `json:"position"`
+	ColorID      string            `json:"color_id"`
+	DateDue      FlexibleTime      `json:"date_due"`
+	DateStarted  FlexibleTime      `json:"date_started"`
+	DateCreation FlexibleTime      `json:"date_creation"`
+	DateMoved    FlexibleTime      `json:"date_moved"`
+	Reference    string            `json:"reference"`
+	Tags         map[string]string `json:"tags,omitempty"`
 }
 
 // Comment represents a Kanboard comment.
@@ -127,6 +128,14 @@ func (c *Client) GetTask(taskID int) (*Task, error) {
 		return nil, err
 	}
 	return &result, nil
+}
+
+func (c *Client) GetTaskTags(taskID int) (map[string]string, error) {
+	var result map[string]string
+	if err := c.Call("getTaskTags", map[string]int{"task_id": taskID}, &result); err != nil {
+		return nil, err
+	}
+	return result, nil
 }
 
 // CreateTaskParams holds parameters for creating a task.

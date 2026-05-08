@@ -6,7 +6,7 @@ tasks, and comments directly from your terminal or scripts.
 ## Features
 
 - **Projects** — list, create, delete
-- **Tasks** — list, get, create, delete, move (column/position), move to another project, open, close
+- **Tasks** — list with status, tag, and column filters; get, create, delete, move (column/position), move to another project, open, close
 - **Comments** — list, add, delete
 - **Secure credential storage** — API token is stored in the OS keyring (GNOME Keyring / libsecret on Linux, Keychain on macOS, Credential Manager on Windows); only the username is written to disk
 - **JSON output** — every command accepts `--json` for machine-readable output, suitable for agents and scripting
@@ -123,6 +123,10 @@ kanboard-cli task list --project-id <id>
 # Include closed tasks
 kanboard-cli task list --project-id <id> --all
 
+# Filter by status, tag, or column title/ID
+kanboard-cli task list --project-id <id> --status open --tag bulletin --column Refinement
+kanboard-cli task list --project-id <id> --status closed --column 42
+
 # Show full task details
 kanboard-cli task get <task-id>
 
@@ -173,6 +177,7 @@ into `jq` or calling from scripts and agents:
 
 ```sh
 kanboard-cli --json task list --project-id 1 | jq '.[].title'
+kanboard-cli --json task list --project-id 1 --tag bulletin --column Refinement | jq '.[].tags'
 kanboard-cli --json task get 42 | jq '{id, title, status: (if .is_active == "1" then "open" else "closed" end)}'
 ```
 
