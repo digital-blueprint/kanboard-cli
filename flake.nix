@@ -32,8 +32,7 @@
               version = appVersion;
               src = ./.;
 
-              # vendor/ directory is committed; Nix uses it directly.
-              vendorHash = null;
+              vendorHash = "sha256-rUmZHeZLEpksCA7bhtP+8uby3NdCQ4PzUhBQzVlrgD0=";
 
               ldflags = [
                 "-s" "-w"
