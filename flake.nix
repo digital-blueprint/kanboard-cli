@@ -1,24 +1,13 @@
 {
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
-    devenv.url = "github:cachix/devenv";
   };
 
-  outputs = { self, nixpkgs, devenv, ... }@inputs:
+  outputs = { self, nixpkgs }:
     let
       systems = [ "x86_64-linux" "aarch64-linux" "x86_64-darwin" "aarch64-darwin" ];
       forAllSystems = nixpkgs.lib.genAttrs systems;
     in {
-      # ── devShell ──────────────────────────────────────────────────────────
-      devShells = forAllSystems (system:
-        let pkgs = nixpkgs.legacyPackages.${system}; in {
-          default = devenv.lib.mkShell {
-            inherit inputs pkgs;
-            modules = [ ./devenv.nix ];
-          };
-        }
-      );
-
       # ── package ───────────────────────────────────────────────────────────
       packages = forAllSystems (system:
         let pkgs = nixpkgs.legacyPackages.${system}; in {
