@@ -25,8 +25,14 @@ jobs:
           go-version-file: go.mod
           cache: true
 
-      - name: Install libsecret (required by go-keyring on Linux)
-        run: sudo apt-get install -y libsecret-1-dev
+      - name: Install libsecret and ARM64 cross-compiler (required by go-keyring on Linux)
+        run: |
+          sudo dpkg --add-architecture arm64
+          sudo sed -i 's|^deb \(.*\)|deb [arch=amd64] \1|' /etc/apt/sources.list
+          echo "deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports noble main restricted universe multiverse" | sudo tee -a /etc/apt/sources.list
+          echo "deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports noble-updates main restricted universe multiverse" | sudo tee -a /etc/apt/sources.list
+          sudo apt-get update
+          sudo apt-get install -y libsecret-1-dev gcc-aarch64-linux-gnu libsecret-1-dev:arm64
 
       - name: Derive version tag
         id: tag
