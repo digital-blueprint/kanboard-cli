@@ -53,9 +53,9 @@ func NewRootCmd() *cobra.Command {
 		Long: `kanboard-cli lets you manage projects, tasks, and comments on a
 Kanboard instance from the command line.
 
-The server URL must be provided via the KANBOARD_URL environment variable.
-Authentication credentials are stored in the user config directory after
-running 'kanboard-cli auth login'.`,
+The server URL and authentication credentials are configured by running
+'kanboard-cli auth login'. KANBOARD_URL can be used to override the stored
+server URL.`,
 	}
 
 	// --json is a persistent flag: available on every sub-command.

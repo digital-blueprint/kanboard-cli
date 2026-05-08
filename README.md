@@ -47,17 +47,6 @@ on your `$PATH`.
 
 ## Configuration
 
-### Server URL
-
-Set the `KANBOARD_URL` environment variable to the base URL of your Kanboard
-instance:
-
-```sh
-export KANBOARD_URL=https://kanboard.example.com
-```
-
-Add it to your shell profile (`~/.bashrc`, `~/.zshrc`, etc.) to make it permanent.
-
 ### Authentication
 
 ```sh
@@ -66,13 +55,28 @@ kanboard-cli auth login
 
 You will be prompted for:
 
+- **Kanboard URL** — the base URL of your Kanboard instance.
 - **Username** — use `jsonrpc` for the application API (token from
   *Settings › API*), or your own username for the user API (requires a
   personal access token from your profile page).
 - **API token** — entered via a hidden prompt (not echoed).
 
-The username is stored in `$XDG_CONFIG_HOME/kanboard-cli/config.json`.
+The server URL and username are stored in `$XDG_CONFIG_HOME/kanboard-cli/config.json`.
 The token is stored **only** in the OS keyring — never in a plain-text file.
+
+You can also pass the URL non-interactively:
+
+```sh
+kanboard-cli auth login --url https://kanboard.example.com
+```
+
+### Server URL Override
+
+Set `KANBOARD_URL` to override the stored server URL for a command:
+
+```sh
+export KANBOARD_URL=https://kanboard.example.com
+```
 
 #### Environment variable override (CI/CD)
 

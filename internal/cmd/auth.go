@@ -22,7 +22,7 @@ func newAuthCmd() *cobra.Command {
 }
 
 func newAuthLoginCmd() *cobra.Command {
-	var username, token string
+	var serverURL, username, token string
 
 	cmd := &cobra.Command{
 		Use:   "login",
@@ -31,7 +31,7 @@ func newAuthLoginCmd() *cobra.Command {
 (libsecret/GNOME Keyring on Linux, Keychain on macOS,
 Credential Manager on Windows).
 
-The username is stored in a plain config file; only the token is
+The server URL and username are stored in a plain config file; only the token is
 kept in the keyring.
 
 For the application API use username "jsonrpc" and the token from
@@ -39,6 +39,27 @@ Settings > API.  For the user API use your username and a personal
 access token generated in your profile.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			reader := bufio.NewReader(os.Stdin)
+
+			if serverURL == "" {
+				currentURL, _ := config.URL()
+				if currentURL == "" {
+					fmt.Print("Kanboard URL: ")
+				} else {
+					fmt.Printf("Kanboard URL [%s]: ", currentURL)
+				}
+				u, err := reader.ReadString('\n')
+				if err != nil {
+					return err
+				}
+				serverURL = strings.TrimSpace(u)
+				if serverURL == "" {
+					serverURL = currentURL
+				}
+			}
+
+			if serverURL == "" {
+				return fmt.Errorf("Kanboard URL cannot be empty")
+			}
 
 			if username == "" {
 				fmt.Print("Username [jsonrpc]: ")
@@ -72,14 +93,15 @@ access token generated in your profile.`,
 				return fmt.Errorf("token cannot be empty")
 			}
 
-			if err := config.SaveCredentials(username, token); err != nil {
+			if err := config.SaveCredentials(serverURL, username, token); err != nil {
 				return err
 			}
-			fmt.Println("Credentials saved to OS keyring.")
+			fmt.Println("Settings saved and credentials stored in OS keyring.")
 			return nil
 		},
 	}
 
+	cmd.Flags().StringVar(&serverURL, "url", "", "Kanboard server URL")
 	cmd.Flags().StringVarP(&username, "username", "u", "", "Kanboard username (default: jsonrpc)")
 	// Intentionally not providing a --token flag to discourage passing secrets
 	// on the command line (visible in shell history / process list).
@@ -109,7 +131,7 @@ func newAuthStatusCmd() *cobra.Command {
 			}
 
 			if serverURL == "" {
-				fmt.Println("KANBOARD_URL: not set")
+				fmt.Println("Server:   not configured")
 			} else {
 				fmt.Println("Server:  ", serverURL)
 			}

@@ -24,6 +24,7 @@ const (
 
 // fileConfig holds non-secret configuration persisted to disk.
 type fileConfig struct {
+	URL      string `json:"url"`
 	Username string `json:"username"`
 }
 
@@ -74,10 +75,10 @@ func saveFileConfig(cfg *fileConfig) error {
 	return nil
 }
 
-// SaveCredentials stores the username in the config file and the token
+// SaveCredentials stores the server URL and username in the config file and the token
 // securely in the OS keyring.
-func SaveCredentials(username, token string) error {
-	if err := saveFileConfig(&fileConfig{Username: username}); err != nil {
+func SaveCredentials(serverURL, username, token string) error {
+	if err := saveFileConfig(&fileConfig{URL: serverURL, Username: username}); err != nil {
 		return err
 	}
 	if err := keyring.Set(keyringService, username, token); err != nil {
@@ -98,16 +99,24 @@ func DeleteCredentials() error {
 	}
 	// Best-effort keyring deletion; ignore "not found" errors.
 	_ = keyring.Delete(keyringService, username)
-	return saveFileConfig(&fileConfig{})
+	cfg.Username = ""
+	return saveFileConfig(cfg)
 }
 
-// URL returns the Kanboard server URL from the environment variable.
+// URL returns the Kanboard server URL from the environment variable or config file.
 func URL() (string, error) {
 	u := os.Getenv(EnvURL)
-	if u == "" {
-		return "", fmt.Errorf("environment variable %s is not set", EnvURL)
+	if u != "" {
+		return u, nil
 	}
-	return u, nil
+	cfg, err := loadFileConfig()
+	if err != nil {
+		return "", err
+	}
+	if cfg.URL == "" {
+		return "", fmt.Errorf("Kanboard URL is not configured; run 'kanboard-cli auth login' or set %s", EnvURL)
+	}
+	return cfg.URL, nil
 }
 
 // Credentials returns (username, token) by checking env vars first, then the
