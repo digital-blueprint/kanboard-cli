@@ -23,6 +23,7 @@ func newTaskCmd() *cobra.Command {
 		newTaskDeleteCmd(),
 		newTaskMoveCmd(),
 		newTaskMoveProjectCmd(),
+		newTaskMoveBoardCmd(),
 		newTaskCloseCmd(),
 		newTaskOpenCmd(),
 		newTaskAssignCmd(),
@@ -145,6 +146,77 @@ func resolveColumnID(client *api.Client, projectID int, column string) (string, 
 		}
 	}
 	return "", fmt.Errorf("column %q not found in project %d", column, projectID)
+}
+
+func resolveColumnIDInt(client *api.Client, projectID int, column string) (int, error) {
+	columnID, err := resolveColumnID(client, projectID, column)
+	if err != nil {
+		return 0, err
+	}
+	id, err := strconv.Atoi(columnID)
+	if err != nil {
+		return 0, fmt.Errorf("invalid column ID %q: %w", columnID, err)
+	}
+	return id, nil
+}
+
+func resolveProjectID(client *api.Client, project string) (int, error) {
+	project = strings.TrimSpace(project)
+	if project == "" {
+		return 0, fmt.Errorf("--project cannot be empty")
+	}
+	if id, err := strconv.Atoi(project); err == nil {
+		return id, nil
+	}
+
+	matched, err := client.GetProjectByName(project)
+	if err != nil {
+		return 0, err
+	}
+	if matched == nil {
+		return 0, fmt.Errorf("project %q not found", project)
+	}
+	return jsonNumberToInt(matched.ID, "project ID")
+}
+
+func resolveSwimlaneID(client *api.Client, projectID int, swimlane string) (int, error) {
+	swimlane = strings.TrimSpace(swimlane)
+	if swimlane == "" {
+		return 0, fmt.Errorf("--swimlane cannot be empty")
+	}
+	if id, err := strconv.Atoi(swimlane); err == nil {
+		return id, nil
+	}
+
+	swimlanes, err := client.GetActiveSwimlanes(projectID)
+	if err != nil {
+		return 0, err
+	}
+	for _, candidate := range swimlanes {
+		if strings.EqualFold(candidate.Name, swimlane) {
+			return jsonNumberToInt(candidate.ID, "swimlane ID")
+		}
+	}
+	return 0, fmt.Errorf("swimlane %q not found in project %d", swimlane, projectID)
+}
+
+func firstColumnID(client *api.Client, projectID int) (int, error) {
+	columns, err := client.GetColumns(projectID)
+	if err != nil {
+		return 0, err
+	}
+	if len(columns) == 0 {
+		return 0, fmt.Errorf("project %d has no columns", projectID)
+	}
+	return jsonNumberToInt(columns[0].ID, "column ID")
+}
+
+func jsonNumberToInt(value fmt.Stringer, label string) (int, error) {
+	id, err := strconv.Atoi(value.String())
+	if err != nil {
+		return 0, fmt.Errorf("invalid %s %q: %w", label, value.String(), err)
+	}
+	return id, nil
 }
 
 func filterTasksByColumn(tasks []api.Task, columnID string) []api.Task {
@@ -427,6 +499,119 @@ func newTaskMoveProjectCmd() *cobra.Command {
 			return nil
 		},
 	}
+}
+
+func newTaskMoveBoardCmd() *cobra.Command {
+	var project, column, swimlane string
+	var position int
+
+	cmd := &cobra.Command{
+		Use:   "move-board <task-id> [task-id...]",
+		Short: "Move one or more tasks to a project board, column, or swimlane",
+		Args:  cobra.MinimumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if strings.TrimSpace(project) == "" {
+				return fmt.Errorf("--project is required")
+			}
+			if position == 0 {
+				position = 1
+			}
+
+			taskIDs := make([]int, 0, len(args))
+			for _, arg := range args {
+				id, err := strconv.Atoi(arg)
+				if err != nil {
+					return fmt.Errorf("invalid task ID: %s", arg)
+				}
+				taskIDs = append(taskIDs, id)
+			}
+
+			client := newClient()
+			projectID, err := resolveProjectID(client, project)
+			if err != nil {
+				return err
+			}
+
+			columnID := 0
+			if strings.TrimSpace(column) != "" {
+				columnID, err = resolveColumnIDInt(client, projectID, column)
+				if err != nil {
+					return err
+				}
+			}
+
+			swimlaneID := 0
+			if strings.TrimSpace(swimlane) != "" {
+				swimlaneID, err = resolveSwimlaneID(client, projectID, swimlane)
+				if err != nil {
+					return err
+				}
+			}
+
+			moved := make([]map[string]int, 0, len(taskIDs))
+			for _, taskID := range taskIDs {
+				if err := client.MoveTaskToProject(taskID, projectID); err != nil {
+					return fmt.Errorf("move task %d to project %d: %w", taskID, projectID, err)
+				}
+
+				targetColumnID := columnID
+				if targetColumnID == 0 && swimlaneID != 0 {
+					task, err := client.GetTask(taskID)
+					if err != nil {
+						return fmt.Errorf("get task %d after project move: %w", taskID, err)
+					}
+					targetColumnID, err = jsonNumberToInt(task.ColumnID, "column ID")
+					if err != nil || targetColumnID == 0 {
+						targetColumnID, err = firstColumnID(client, projectID)
+						if err != nil {
+							return err
+						}
+					}
+				}
+
+				if targetColumnID != 0 {
+					if err := client.MoveTaskPosition(api.MoveTaskPositionParams{
+						ProjectID:  projectID,
+						TaskID:     taskID,
+						ColumnID:   targetColumnID,
+						Position:   position,
+						SwimlaneID: swimlaneID,
+					}); err != nil {
+						return fmt.Errorf("move task %d on board %d: %w", taskID, projectID, err)
+					}
+				}
+
+				moved = append(moved, map[string]int{
+					"task_id":     taskID,
+					"project_id":  projectID,
+					"column_id":   targetColumnID,
+					"swimlane_id": swimlaneID,
+					"position":    position,
+				})
+			}
+
+			if jsonOutput {
+				printJSON(moved)
+				return nil
+			}
+			for _, taskID := range taskIDs {
+				fmt.Printf("Task %d moved to project %d", taskID, projectID)
+				if columnID != 0 {
+					fmt.Printf(", column %d", columnID)
+				}
+				if swimlaneID != 0 {
+					fmt.Printf(", swimlane %d", swimlaneID)
+				}
+				fmt.Println()
+			}
+			return nil
+		},
+	}
+	cmd.Flags().StringVarP(&project, "project", "p", "", "Target project ID or exact name (required)")
+	cmd.Flags().StringVarP(&column, "column", "c", "", "Target column ID or exact title")
+	cmd.Flags().StringVar(&swimlane, "swimlane", "", "Target swimlane ID or exact name")
+	cmd.Flags().IntVar(&position, "position", 1, "Position in column")
+	return cmd
 }
 
 func newTaskCloseCmd() *cobra.Command {

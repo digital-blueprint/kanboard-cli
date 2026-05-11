@@ -6,7 +6,7 @@ tasks, and comments directly from your terminal or scripts.
 ## Features
 
 - **Projects** — list, create, delete
-- **Tasks** — list with status, tag, and column filters; get, create, assign, delete, move (column/position), move to another project, open, close
+- **Tasks** — list with status, tag, and column filters; get, create, assign, delete, move (column/position), move to another project or swimlane, open, close
 - **Comments** — list, add, delete
 - **Secure credential storage** — API token is stored in the OS keyring (GNOME Keyring / libsecret on Linux, Keychain on macOS, Credential Manager on Windows); only the username is written to disk
 - **JSON output** — every command accepts `--json` for machine-readable output, suitable for agents and scripting
@@ -146,6 +146,13 @@ kanboard-cli task move <task-id> \
 
 # Move to a different project
 kanboard-cli task move-project <task-id> <target-project-id>
+
+# Move one or more tasks to a project board by ID or exact name
+kanboard-cli task move-board <task-id> <task-id> --project "Software Solutions"
+
+# Move to a project board and swimlane/column by ID or exact name
+kanboard-cli task move-board <task-id> --project "Software Solutions" --swimlane "Team Chameleon"
+kanboard-cli task move-board <task-id> --project "Software Solutions" --column Refinement
 
 # Assign to the authenticated user
 kanboard-cli task assign <task-id>

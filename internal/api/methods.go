@@ -52,6 +52,15 @@ type Column struct {
 	Position json.Number `json:"position"`
 }
 
+// Swimlane represents a project swimlane.
+type Swimlane struct {
+	ID        json.Number `json:"id"`
+	Name      string      `json:"name"`
+	Position  json.Number `json:"position"`
+	IsActive  json.Number `json:"is_active"`
+	ProjectID json.Number `json:"project_id"`
+}
+
 // Me represents the current user.
 type Me struct {
 	ID       json.Number `json:"id"`
@@ -74,6 +83,17 @@ func (c *Client) GetProjectByID(id int) (*Project, error) {
 	var result Project
 	if err := c.Call("getProjectById", map[string]int{"project_id": id}, &result); err != nil {
 		return nil, err
+	}
+	return &result, nil
+}
+
+func (c *Client) GetProjectByName(name string) (*Project, error) {
+	var result Project
+	if err := c.Call("getProjectByName", map[string]string{"name": name}, &result); err != nil {
+		return nil, err
+	}
+	if result.ID.String() == "" {
+		return nil, nil
 	}
 	return &result, nil
 }
@@ -106,6 +126,16 @@ func (c *Client) RemoveProject(id int) error {
 func (c *Client) GetColumns(projectID int) ([]Column, error) {
 	var result []Column
 	if err := c.Call("getColumns", map[string]int{"project_id": projectID}, &result); err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+// ---- Swimlane methods -------------------------------------------------------
+
+func (c *Client) GetActiveSwimlanes(projectID int) ([]Swimlane, error) {
+	var result []Swimlane
+	if err := c.Call("getActiveSwimlanes", []int{projectID}, &result); err != nil {
 		return nil, err
 	}
 	return result, nil
