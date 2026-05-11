@@ -12,7 +12,7 @@ permissions:
 jobs:
   release:
     name: Build & Release
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     steps:
       - uses: actions/checkout@v4
@@ -28,9 +28,19 @@ jobs:
       - name: Install libsecret and ARM64 cross-compiler (required by go-keyring on Linux)
         run: |
           sudo dpkg --add-architecture arm64
-          sudo sed -i 's|^deb \(.*\)|deb [arch=amd64] \1|' /etc/apt/sources.list
-          echo "deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports noble main restricted universe multiverse" | sudo tee -a /etc/apt/sources.list
-          echo "deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports noble-updates main restricted universe multiverse" | sudo tee -a /etc/apt/sources.list
+
+          sudo sed -i '/^Architectures:/d' /etc/apt/sources.list.d/ubuntu.sources
+          sudo sed -i '/^Components:/a Architectures: amd64' /etc/apt/sources.list.d/ubuntu.sources
+
+          sudo tee /etc/apt/sources.list.d/ubuntu-arm64.sources > /dev/null <<'EOF'
+          Types: deb
+          URIs: http://ports.ubuntu.com/ubuntu-ports
+          Suites: noble noble-updates noble-backports noble-security
+          Components: main restricted universe multiverse
+          Architectures: arm64
+          Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg
+          EOF
+
           sudo apt-get update
           sudo apt-get install -y libsecret-1-dev gcc-aarch64-linux-gnu libsecret-1-dev:arm64
 
