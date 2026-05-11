@@ -221,6 +221,18 @@ func (c *Client) OpenTask(taskID int) error {
 	return nil
 }
 
+func (c *Client) AssignTask(taskID, userID int) error {
+	var ok bool
+	params := map[string]int{"id": taskID, "owner_id": userID}
+	if err := c.Call("updateTask", params, &ok); err != nil {
+		return err
+	}
+	if !ok {
+		return errFailed("updateTask")
+	}
+	return nil
+}
+
 // ---- Comment methods --------------------------------------------------------
 
 func (c *Client) GetAllComments(taskID int) ([]Comment, error) {

@@ -25,6 +25,7 @@ func newTaskCmd() *cobra.Command {
 		newTaskMoveProjectCmd(),
 		newTaskCloseCmd(),
 		newTaskOpenCmd(),
+		newTaskAssignCmd(),
 	)
 	return cmd
 }
@@ -229,6 +230,58 @@ func newTaskGetCmd() *cobra.Command {
 			return nil
 		},
 	}
+}
+
+func newTaskAssignCmd() *cobra.Command {
+	var userID int
+
+	cmd := &cobra.Command{
+		Use:   "assign <task-id> [task-id...]",
+		Short: "Assign one or more tasks to a user",
+		Args:  cobra.MinimumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			taskIDs := make([]int, 0, len(args))
+			for _, arg := range args {
+				id, err := strconv.Atoi(arg)
+				if err != nil {
+					return fmt.Errorf("invalid task ID: %s", arg)
+				}
+				taskIDs = append(taskIDs, id)
+			}
+
+			client := newClient()
+			if userID == 0 {
+				me, err := client.GetMe()
+				if err != nil {
+					return fmt.Errorf("could not determine user ID (use --user-id): %w", err)
+				}
+				uid, err := strconv.Atoi(me.ID.String())
+				if err != nil {
+					return fmt.Errorf("invalid user ID returned from API: %w", err)
+				}
+				userID = uid
+			}
+
+			assigned := make([]map[string]int, 0, len(taskIDs))
+			for _, taskID := range taskIDs {
+				if err := client.AssignTask(taskID, userID); err != nil {
+					return fmt.Errorf("assign task %d: %w", taskID, err)
+				}
+				assigned = append(assigned, map[string]int{"task_id": taskID, "user_id": userID})
+			}
+
+			if jsonOutput {
+				printJSON(assigned)
+				return nil
+			}
+			for _, taskID := range taskIDs {
+				fmt.Printf("Task %d assigned to user %d\n", taskID, userID)
+			}
+			return nil
+		},
+	}
+	cmd.Flags().IntVarP(&userID, "user-id", "u", 0, "User ID (auto-detected for user API)")
+	return cmd
 }
 
 func newTaskCreateCmd() *cobra.Command {

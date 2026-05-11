@@ -6,7 +6,7 @@ tasks, and comments directly from your terminal or scripts.
 ## Features
 
 - **Projects** — list, create, delete
-- **Tasks** — list with status, tag, and column filters; get, create, delete, move (column/position), move to another project, open, close
+- **Tasks** — list with status, tag, and column filters; get, create, assign, delete, move (column/position), move to another project, open, close
 - **Comments** — list, add, delete
 - **Secure credential storage** — API token is stored in the OS keyring (GNOME Keyring / libsecret on Linux, Keychain on macOS, Credential Manager on Windows); only the username is written to disk
 - **JSON output** — every command accepts `--json` for machine-readable output, suitable for agents and scripting
@@ -147,6 +147,13 @@ kanboard-cli task move <task-id> \
 # Move to a different project
 kanboard-cli task move-project <task-id> <target-project-id>
 
+# Assign to the authenticated user
+kanboard-cli task assign <task-id>
+kanboard-cli task assign <task-id> <task-id> <task-id>
+
+# Assign to a specific user ID
+kanboard-cli task assign <task-id> --user-id <user-id>
+
 # Close / re-open
 kanboard-cli task close <task-id>
 kanboard-cli task open  <task-id>
@@ -179,6 +186,7 @@ into `jq` or calling from scripts and agents:
 kanboard-cli --json task list --project-id 1 | jq '.[].title'
 kanboard-cli --json task list --project-id 1 --tag bulletin --column Refinement | jq '.[].tags'
 kanboard-cli --json task get 42 | jq '{id, title, status: (if .is_active == "1" then "open" else "closed" end)}'
+kanboard-cli --json task assign 42 43 | jq '.[].task_id'
 ```
 
 Mutating commands return a small confirmation object, e.g.:
