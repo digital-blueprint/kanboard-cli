@@ -163,6 +163,7 @@ kanboard-cli task assign <task-id> --user-id <user-id>
 
 # Close / re-open
 kanboard-cli task close <task-id>
+kanboard-cli task close <task-id> <task-id> <task-id>
 kanboard-cli task open  <task-id>
 
 # Delete

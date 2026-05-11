@@ -14,6 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   or more tasks to another project board, with `--swimlane` and `--column`
   resolving IDs or exact names.
 
+### Changed
+- `task close` now accepts one or more task IDs in a single command.
+
 ## [0.3.0] - 2026-05-08
 
 ### Added

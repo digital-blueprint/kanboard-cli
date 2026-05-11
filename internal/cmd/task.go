@@ -616,23 +616,35 @@ func newTaskMoveBoardCmd() *cobra.Command {
 
 func newTaskCloseCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:   "close <task-id>",
-		Short: "Close (complete) a task",
-		Args:  cobra.ExactArgs(1),
+		Use:   "close <task-id> [task-id...]",
+		Short: "Close (complete) one or more tasks",
+		Args:  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			id, err := strconv.Atoi(args[0])
-			if err != nil {
-				return fmt.Errorf("invalid task ID: %s", args[0])
+			taskIDs := make([]int, 0, len(args))
+			for _, arg := range args {
+				id, err := strconv.Atoi(arg)
+				if err != nil {
+					return fmt.Errorf("invalid task ID: %s", arg)
+				}
+				taskIDs = append(taskIDs, id)
 			}
+
 			client := newClient()
-			if err := client.CloseTask(id); err != nil {
-				return err
+			closed := make([]map[string]interface{}, 0, len(taskIDs))
+			for _, taskID := range taskIDs {
+				if err := client.CloseTask(taskID); err != nil {
+					return fmt.Errorf("close task %d: %w", taskID, err)
+				}
+				closed = append(closed, map[string]interface{}{"closed": true, "task_id": taskID})
 			}
+
 			if jsonOutput {
-				printJSON(map[string]interface{}{"closed": true, "task_id": id})
+				printJSON(closed)
 				return nil
 			}
-			fmt.Printf("Task %d closed\n", id)
+			for _, taskID := range taskIDs {
+				fmt.Printf("Task %d closed\n", taskID)
+			}
 			return nil
 		},
 	}
