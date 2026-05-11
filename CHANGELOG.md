@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-05-11
+
 ### Added
 - `task assign <task-id> [task-id...]` to assign one or more tasks to the
   authenticated user, with `--user-id` for assigning tasks to a specific user.
@@ -70,7 +72,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `README.md` with installation, configuration, usage, and development docs
 - `LICENSE` — GNU General Public License v3.0
 
-[Unreleased]: https://github.com/tu-graz/kanboard-cli/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/tu-graz/kanboard-cli/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/tu-graz/kanboard-cli/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/tu-graz/kanboard-cli/releases/tag/v0.3.0
 [0.2.0]: https://github.com/tu-graz/kanboard-cli/releases/tag/v0.2.0
 [0.1.0]: https://github.com/tu-graz/kanboard-cli/releases/tag/v0.1.0
