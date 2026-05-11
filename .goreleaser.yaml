@@ -10,35 +10,18 @@ builds:
     main: .
     binary: kanboard-cli
     env:
-      - CGO_ENABLED=1   # required for go-keyring on Linux
+      - CGO_ENABLED=0
     ldflags:
       - -s -w
       - -X github.com/tu-graz/kanboard-cli/internal/version.Version={{.Version}}
       - -X github.com/tu-graz/kanboard-cli/internal/version.Commit={{.Commit}}
       - -X github.com/tu-graz/kanboard-cli/internal/version.Date={{.Date}}
-    # Cross-compile targets.
-    # NOTE: CGO (libsecret) requires a cross-compiler for non-native targets.
-    # The targets below use CGO=0 for non-Linux to avoid needing cross-compilers;
-    # on macOS/Windows go-keyring uses pure-Go backends (Keychain/WinCred).
     targets:
       - linux_amd64
       - linux_arm64
       - darwin_amd64
       - darwin_arm64
       - windows_amd64
-
-    overrides:
-      - goos: linux
-        goarch: arm64
-        env:
-          - CGO_ENABLED=1
-          - CC=aarch64-linux-gnu-gcc
-      - goos: darwin
-        env:
-          - CGO_ENABLED=0
-      - goos: windows
-        env:
-          - CGO_ENABLED=0
 
 archives:
   - formats: [tar.gz]

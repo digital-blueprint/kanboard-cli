@@ -25,30 +25,14 @@ jobs:
           go-version-file: go.mod
           cache: true
 
-      - name: Install libsecret and ARM64 cross-compiler (required by go-keyring on Linux)
-        run: |
-          sudo dpkg --add-architecture arm64
-
-          sudo sed -i '/^Architectures:/d' /etc/apt/sources.list.d/ubuntu.sources
-          sudo sed -i '/^Components:/a Architectures: amd64' /etc/apt/sources.list.d/ubuntu.sources
-
-          sudo tee /etc/apt/sources.list.d/ubuntu-arm64.sources > /dev/null <<'EOF'
-          Types: deb
-          URIs: http://ports.ubuntu.com/ubuntu-ports
-          Suites: noble noble-updates noble-backports noble-security
-          Components: main restricted universe multiverse
-          Architectures: arm64
-          Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg
-          EOF
-
-          sudo apt-get update
-          sudo apt-get install -y libsecret-1-dev gcc-aarch64-linux-gnu libsecret-1-dev:arm64
-
       - name: Derive version tag
         id: tag
         run: |
-          # Use the most recent git tag, or generate a date-based pre-release.
-          TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0-$(date -u +%Y%m%d%H%M%S)")
+          if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
+            TAG="${GITHUB_REF_NAME}"
+          else
+            TAG="v0.0.0-$(date -u +%Y%m%d%H%M%S)"
+          fi
           echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
 
       - name: Run GoReleaser
@@ -58,3 +42,4 @@ jobs:
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GORELEASER_CURRENT_TAG: ${{ steps.tag.outputs.tag }}
