@@ -37,3 +37,5 @@ coverage.html
 # ── Secrets / local env ───────────────────────────────────────────────────────
 .env
 .env.*
+/.pre-commit-config.yaml
+/.shared
