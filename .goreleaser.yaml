@@ -49,7 +49,7 @@ changelog:
 release:
   github:
     owner: "{{ .Env.GITHUB_REPOSITORY_OWNER }}"
-    name:  kanboard-cli
+    name: kanboard-cli
   draft: false
   prerelease: auto
   name_template: "{{.ProjectName}} {{.Version}}"

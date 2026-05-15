@@ -14,11 +14,11 @@ tasks, and comments directly from your terminal or scripts.
 
 ## Requirements
 
-| Platform | Keyring backend |
-|----------|----------------|
+| Platform | Keyring backend                                  |
+| -------- | ------------------------------------------------ |
 | Linux    | libsecret / GNOME Keyring (or KWallet via D-Bus) |
-| macOS    | macOS Keychain Services |
-| Windows  | Windows Credential Manager |
+| macOS    | macOS Keychain Services                          |
+| Windows  | Windows Credential Manager                       |
 
 A running [Kanboard](https://github.com/kanboard/kanboard) instance with API access enabled.
 
@@ -57,7 +57,7 @@ You will be prompted for:
 
 - **Kanboard URL** — the base URL of your Kanboard instance.
 - **Username** — use `jsonrpc` for the application API (token from
-  *Settings › API*), or your own username for the user API (requires a
+  _Settings › API_), or your own username for the user API (requires a
   personal access token from your profile page).
 - **API token** — entered via a hidden prompt (not echoed).
 
