@@ -87,10 +87,20 @@ func newTaskListCmd() *cobra.Command {
 				if len(title) > 50 {
 					title = title[:47] + "..."
 				}
-				table.Append(t.ID.String(), title, t.ColumnID.String(), t.Position.String(), t.ColorID,
-					t.DateDue.Format("2006-01-02"))
+				if err := table.Append(
+					t.ID.String(),
+					title,
+					t.ColumnID.String(),
+					t.Position.String(),
+					t.ColorID,
+					t.DateDue.Format("2006-01-02"),
+				); err != nil {
+					return err
+				}
 			}
-			table.Render()
+			if err := table.Render(); err != nil {
+				return err
+			}
 			return nil
 		},
 	}
@@ -98,7 +108,8 @@ func newTaskListCmd() *cobra.Command {
 	cmd.Flags().BoolVarP(&all, "all", "a", false, "Include closed/inactive tasks")
 	cmd.Flags().StringVar(&status, "status", "open", "Task status: open, closed, or all")
 	cmd.Flags().StringVar(&tag, "tag", "", "Only include tasks with this tag")
-	cmd.Flags().StringVar(&column, "column", "", "Only include tasks in this column (ID or exact title)")
+	cmd.Flags().
+		StringVar(&column, "column", "", "Only include tasks in this column (ID or exact title)")
 	return cmd
 }
 
@@ -607,7 +618,8 @@ func newTaskMoveBoardCmd() *cobra.Command {
 			return nil
 		},
 	}
-	cmd.Flags().StringVarP(&project, "project", "p", "", "Target project ID or exact name (required)")
+	cmd.Flags().
+		StringVarP(&project, "project", "p", "", "Target project ID or exact name (required)")
 	cmd.Flags().StringVarP(&column, "column", "c", "", "Target column ID or exact title")
 	cmd.Flags().StringVar(&swimlane, "swimlane", "", "Target swimlane ID or exact name")
 	cmd.Flags().IntVar(&position, "position", 1, "Position in column")

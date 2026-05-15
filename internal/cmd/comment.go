@@ -59,9 +59,13 @@ func newCommentListCmd() *cobra.Command {
 				if c.Name != "" {
 					author = c.Name + " (" + c.Username + ")"
 				}
-				table.Append(c.ID.String(), author, ts, c.Comment)
+				if err := table.Append(c.ID.String(), author, ts, c.Comment); err != nil {
+					return err
+				}
 			}
-			table.Render()
+			if err := table.Render(); err != nil {
+				return err
+			}
 			return nil
 		},
 	}

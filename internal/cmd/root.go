@@ -28,12 +28,6 @@ func newClient() *api.Client {
 	return api.NewClient(serverURL, username, token)
 }
 
-// die prints a formatted error and exits with code 1.
-func die(format string, args ...interface{}) {
-	fmt.Fprintf(os.Stderr, "Error: "+format+"\n", args...)
-	os.Exit(1)
-}
-
 // printJSON marshals v to indented JSON and writes it to stdout.
 // On error it writes to stderr and exits 1.
 func printJSON(v interface{}) {

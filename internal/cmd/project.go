@@ -53,9 +53,13 @@ func newProjectListCmd() *cobra.Command {
 				if len(desc) > 40 {
 					desc = desc[:37] + "..."
 				}
-				table.Append(p.ID.String(), p.Name, active, p.Identifier, desc)
+				if err := table.Append(p.ID.String(), p.Name, active, p.Identifier, desc); err != nil {
+					return err
+				}
 			}
-			table.Render()
+			if err := table.Render(); err != nil {
+				return err
+			}
 			return nil
 		},
 	}

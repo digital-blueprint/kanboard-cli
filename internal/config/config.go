@@ -114,7 +114,10 @@ func URL() (string, error) {
 		return "", err
 	}
 	if cfg.URL == "" {
-		return "", fmt.Errorf("Kanboard URL is not configured; run 'kanboard-cli auth login' or set %s", EnvURL)
+		return "", fmt.Errorf(
+			"kanboard URL is not configured; run 'kanboard-cli auth login' or set %s",
+			EnvURL,
+		)
 	}
 	return cfg.URL, nil
 }
@@ -150,7 +153,8 @@ func Credentials() (string, string, error) {
 		if errors.Is(err, keyring.ErrNotFound) {
 			return "", "", fmt.Errorf(
 				"no API token found in keyring for user %q; run 'kanboard-cli auth login' or set %s",
-				username, EnvToken,
+				username,
+				EnvToken,
 			)
 		}
 		return "", "", fmt.Errorf("keyring lookup failed: %w", err)

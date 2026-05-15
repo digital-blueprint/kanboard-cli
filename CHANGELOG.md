@@ -7,9 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-05-15
+
+### Fixed
+
+- Addressed `golangci-lint` issues reported by pre-commit hooks, by improving error handling.
+
 ## [0.4.0] - 2026-05-11
 
 ### Added
+
 - `task assign <task-id> [task-id...]` to assign one or more tasks to the
   authenticated user, with `--user-id` for assigning tasks to a specific user.
 - `task move-board <task-id> [task-id...] --project <id-or-name>` to move one
@@ -17,11 +24,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   resolving IDs or exact names.
 
 ### Changed
+
 - `task close` now accepts one or more task IDs in a single command.
 
 ## [0.3.0] - 2026-05-08
 
 ### Added
+
 - `task list --status open|closed|all` to select tasks by Kanboard status.
 - `task list --tag <tag>` to filter tasks by an exact tag name.
 - `task list --column <column-id-or-title>` to filter tasks by board column ID
@@ -31,17 +40,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.2.0] - 2026-05-08
 
 ### Added
+
 - `auth login` now prompts for the Kanboard server URL and stores it in the
   user config file alongside the username.
 - `auth login --url` for non-interactive server URL configuration.
 
 ### Changed
+
 - Commands now use the stored server URL by default; `KANBOARD_URL` remains an
   environment variable override.
 
 ## [0.1.0] - 2026-05-08
 
 ### Added
+
 - Initial implementation of `kanboard-cli`
 - **Auth** — `auth login`, `auth status`, `auth logout`; API token stored
   securely in the OS keyring (libsecret on Linux, Keychain on macOS,
@@ -72,7 +84,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `README.md` with installation, configuration, usage, and development docs
 - `LICENSE` — GNU General Public License v3.0
 
-[Unreleased]: https://github.com/tu-graz/kanboard-cli/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/tu-graz/kanboard-cli/compare/v0.4.1...HEAD
+[0.4.1]: https://github.com/tu-graz/kanboard-cli/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/tu-graz/kanboard-cli/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/tu-graz/kanboard-cli/releases/tag/v0.3.0
 [0.2.0]: https://github.com/tu-graz/kanboard-cli/releases/tag/v0.2.0

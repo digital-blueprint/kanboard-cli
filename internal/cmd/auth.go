@@ -58,7 +58,7 @@ access token generated in your profile.`,
 			}
 
 			if serverURL == "" {
-				return fmt.Errorf("Kanboard URL cannot be empty")
+				return fmt.Errorf("kanboard URL cannot be empty")
 			}
 
 			if username == "" {

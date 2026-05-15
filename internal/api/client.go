@@ -79,7 +79,7 @@ func (c *Client) Call(method string, params interface{}, out interface{}) error 
 	if err != nil {
 		return fmt.Errorf("HTTP request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode == http.StatusUnauthorized {
 		return fmt.Errorf("authentication failed (401): check your token and username")
