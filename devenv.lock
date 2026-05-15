@@ -123,16 +123,16 @@
     "shared": {
       "flake": false,
       "locked": {
-        "lastModified": 1778762800,
-        "narHash": "sha256-fkPL16Z5YKFkLhub+AiPBN95oHZtXIrAXHG8D7ZhBn4=",
-        "owner": "pbek",
-        "repo": "nix-shared",
-        "rev": "a8c118c8b367c411bfbcbf3d75c3ef5b17a1f295",
+        "lastModified": 1778762766,
+        "narHash": "sha256-4ahnDUUhwc5rQkewINvtL9toY/jGHiBjk2KDUN9M65A=",
+        "owner": "digital-blueprint",
+        "repo": "shared",
+        "rev": "55f1d46e27a884c34b47fb7df5685b1f59a07e62",
         "type": "github"
       },
       "original": {
-        "owner": "pbek",
-        "repo": "nix-shared",
+        "owner": "digital-blueprint",
+        "repo": "shared",
         "type": "github"
       }
     }
