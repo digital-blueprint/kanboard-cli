@@ -3,6 +3,8 @@
 A command-line client for [Kanboard](https://kanboard.org/) — manage projects,
 tasks, and comments directly from your terminal or scripts.
 
+![kanboard-cli help output](screenshot.webp)
+
 ## Features
 
 - **Projects** — list, create, delete
