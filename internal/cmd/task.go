@@ -288,6 +288,17 @@ func newTaskGetCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			if t.ID.String() == "" {
+				return fmt.Errorf("task %d not found", id)
+			}
+
+			// Subtasks are informational; don't fail the whole command if they
+			// cannot be fetched.
+			subtasks, err := client.GetAllSubtasks(id)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Warning: could not fetch subtasks: %v\n", err)
+			}
+			t.Subtasks = subtasks
 
 			if jsonOutput {
 				printJSON(t)
@@ -309,6 +320,10 @@ func newTaskGetCmd() *cobra.Command {
 			fmt.Printf("Reference:   %s\n", t.Reference)
 			if t.Description != "" {
 				fmt.Printf("Description:\n%s\n", t.Description)
+			}
+			if len(t.Subtasks) > 0 {
+				fmt.Printf("Subtasks:\n")
+				return renderSubtaskTable(t.Subtasks)
 			}
 			return nil
 		},

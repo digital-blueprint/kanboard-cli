@@ -32,6 +32,7 @@ type Task struct {
 	DateMoved    FlexibleTime      `json:"date_moved"`
 	Reference    string            `json:"reference"`
 	Tags         map[string]string `json:"tags,omitempty"`
+	Subtasks     []Subtask         `json:"subtasks,omitempty"`
 }
 
 // Comment represents a Kanboard comment.
@@ -43,6 +44,29 @@ type Comment struct {
 	Comment      string      `json:"comment"`
 	Username     string      `json:"username"`
 	Name         string      `json:"name"`
+}
+
+// Subtask statuses as defined by Kanboard.
+const (
+	SubtaskStatusTodo       = 0
+	SubtaskStatusInProgress = 1
+	SubtaskStatusDone       = 2
+)
+
+// Subtask represents a Kanboard subtask. Username, Name and StatusName are
+// only populated by getAllSubtasks.
+type Subtask struct {
+	ID            json.Number `json:"id"`
+	Title         string      `json:"title"`
+	Status        json.Number `json:"status"`
+	TimeEstimated json.Number `json:"time_estimated"`
+	TimeSpent     json.Number `json:"time_spent"`
+	TaskID        json.Number `json:"task_id"`
+	UserID        json.Number `json:"user_id"`
+	Position      json.Number `json:"position"`
+	Username      string      `json:"username,omitempty"`
+	Name          string      `json:"name,omitempty"`
+	StatusName    string      `json:"status_name,omitempty"`
 }
 
 // Column represents a board column.
@@ -297,6 +321,89 @@ func (c *Client) RemoveComment(commentID int) error {
 	return nil
 }
 
+// ---- Subtask methods --------------------------------------------------------
+
+func (c *Client) GetAllSubtasks(taskID int) ([]Subtask, error) {
+	var result []Subtask
+	if err := c.Call("getAllSubtasks", map[string]int{"task_id": taskID}, &result); err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+// GetSubtask returns the subtask with the given ID, or nil if it does not exist.
+func (c *Client) GetSubtask(subtaskID int) (*Subtask, error) {
+	var result *Subtask
+	if err := c.Call("getSubtask", map[string]int{"subtask_id": subtaskID}, &result); err != nil {
+		return nil, err
+	}
+	if result == nil || result.ID.String() == "" {
+		return nil, nil
+	}
+	return result, nil
+}
+
+// CreateSubtaskParams holds parameters for createSubtask.
+type CreateSubtaskParams struct {
+	TaskID        int     `json:"task_id"`
+	Title         string  `json:"title"`
+	UserID        int     `json:"user_id,omitempty"`
+	TimeEstimated float64 `json:"time_estimated,omitempty"`
+	TimeSpent     float64 `json:"time_spent,omitempty"`
+	Status        int     `json:"status,omitempty"`
+}
+
+func (c *Client) CreateSubtask(p CreateSubtaskParams) (int, error) {
+	return c.callForID("createSubtask", p)
+}
+
+// UpdateSubtaskParams holds parameters for updateSubtask. Nil fields are not
+// sent and therefore left unchanged. Kanboard requires both ID and TaskID.
+type UpdateSubtaskParams struct {
+	ID            int      `json:"id"`
+	TaskID        int      `json:"task_id"`
+	Title         *string  `json:"title,omitempty"`
+	UserID        *int     `json:"user_id,omitempty"`
+	TimeEstimated *float64 `json:"time_estimated,omitempty"`
+	TimeSpent     *float64 `json:"time_spent,omitempty"`
+	Status        *int     `json:"status,omitempty"`
+}
+
+func (c *Client) UpdateSubtask(p UpdateSubtaskParams) error {
+	var ok bool
+	if err := c.Call("updateSubtask", p, &ok); err != nil {
+		return err
+	}
+	if !ok {
+		return errFailed("updateSubtask")
+	}
+	return nil
+}
+
+func (c *Client) RemoveSubtask(subtaskID int) error {
+	var ok bool
+	if err := c.Call("removeSubtask", map[string]int{"subtask_id": subtaskID}, &ok); err != nil {
+		return err
+	}
+	if !ok {
+		return errFailed("removeSubtask")
+	}
+	return nil
+}
+
+// UpdateTaskDescription replaces the description of a task.
+func (c *Client) UpdateTaskDescription(taskID int, description string) error {
+	var ok bool
+	params := map[string]interface{}{"id": taskID, "description": description}
+	if err := c.Call("updateTask", params, &ok); err != nil {
+		return err
+	}
+	if !ok {
+		return errFailed("updateTask")
+	}
+	return nil
+}
+
 // ---- Me methods -------------------------------------------------------------
 
 func (c *Client) GetMe() (*Me, error) {
@@ -311,4 +418,18 @@ func (c *Client) GetMe() (*Me, error) {
 
 func errFailed(method string) error {
 	return fmt.Errorf("%s returned false (operation failed)", method)
+}
+
+// callForID calls a procedure that returns a new record ID on success and
+// false on failure.
+func (c *Client) callForID(method string, params interface{}) (int, error) {
+	var raw json.RawMessage
+	if err := c.Call(method, params, &raw); err != nil {
+		return 0, err
+	}
+	var id int
+	if err := json.Unmarshal(raw, &id); err != nil || id == 0 {
+		return 0, errFailed(method)
+	}
+	return id, nil
 }

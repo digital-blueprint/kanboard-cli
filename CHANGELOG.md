@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `subtask` command group: `list`, `get`, `add` (one or more titles, with
+  `--user-id`, `--time-estimated`, `--time-spent`, `--status`), `update`,
+  `done`, and `delete`.
+- `subtask from-checklist <task-id>` (aliases `split`, `sync`) to create
+  subtasks from the Markdown checkbox list in a task description. Checked
+  items become done subtasks. A link to the task page, with the subtask ID as
+  link text, is appended to each checklist line, so re-running the command
+  only converts newly added items. Links pointing to the subtask edit form
+  (which opens as a broken page) are rewritten to the new format. Unlinked items matching an existing subtask title are linked to that
+  subtask. Supports `--dry-run`, `--skip-checked`, `--allow-duplicates`,
+  `--user-id`, `--no-links`, and `--remove-from-description`.
+
+### Changed
+
+- `task get` now lists the task's subtasks (and includes them as `subtasks`
+  in `--json` output).
+- `task get` now returns an error when the task does not exist instead of
+  printing empty fields.
+
 ## [0.4.4] - 2026-05-15
 
 ### Fixed

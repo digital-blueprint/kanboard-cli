@@ -9,6 +9,7 @@ tasks, and comments directly from your terminal or scripts.
 
 - **Projects** — list, create, delete
 - **Tasks** — list with status, tag, and column filters; get, create, assign, delete, move (column/position), move to another project or swimlane, open, close
+- **Subtasks** — list, get, add, update, mark done, delete; convert a Markdown checkbox list in a task description into subtasks
 - **Comments** — list, add, delete
 - **Secure credential storage** — API token is stored in the OS keyring (GNOME Keyring / libsecret on Linux, Keychain on macOS, Credential Manager on Windows); only the username is written to disk
 - **JSON output** — every command accepts `--json` for machine-readable output, suitable for agents and scripting
@@ -129,7 +130,7 @@ kanboard-cli task list --project-id <id> --all
 kanboard-cli task list --project-id <id> --status open --tag bulletin --column Refinement
 kanboard-cli task list --project-id <id> --status closed --column 42
 
-# Show full task details
+# Show full task details (including subtasks)
 kanboard-cli task get <task-id>
 
 # Create a task
@@ -171,6 +172,79 @@ kanboard-cli task open  <task-id>
 # Delete
 kanboard-cli task delete <task-id>
 ```
+
+### Subtasks
+
+```sh
+kanboard-cli subtask list <task-id>
+kanboard-cli subtask get  <subtask-id>
+
+# Add one or more subtasks (optionally assigned, with estimate/status)
+kanboard-cli subtask add <task-id> "Write tests" "Update docs"
+kanboard-cli subtask add <task-id> "Review" --user-id 7 --time-estimated 1.5 --status in-progress
+
+# Update title, status (todo, in-progress, done), assignee, or time
+kanboard-cli subtask update <subtask-id> --status done --time-spent 2
+kanboard-cli subtask update <subtask-id> --user-id 0   # unassign
+
+# Mark as done / delete (multiple IDs allowed)
+kanboard-cli subtask done   <subtask-id> <subtask-id>
+kanboard-cli subtask delete <subtask-id>
+```
+
+#### Split a checkbox list into subtasks
+
+`subtask from-checklist` (aliases `split`, `sync`) detects Markdown checkbox
+items in a task description and creates one subtask per item. Unchecked items
+become "todo" subtasks, checked items become "done" subtasks. A link is then
+appended to each line in the description. Kanboard subtasks have no page of
+their own, so the link opens the task page, where the subtask is listed and can
+be edited; the link text carries the subtask ID:
+
+```markdown
+<!-- before -->
+
+- [ ] Write tests
+- [x] Update docs
+
+<!-- after -->
+
+- [ ] Write tests ([subtask #101](https://plan.tugraz.at/task/42))
+- [x] Update docs ([subtask #102](https://plan.tugraz.at/task/42))
+```
+
+The links also record which items have been converted. After adding new
+checkbox items to the description, run the command again and only the new,
+unlinked items become subtasks:
+
+```sh
+# Preview what would happen
+kanboard-cli subtask from-checklist <task-id> --dry-run
+
+# Create subtasks for all unlinked items and add links to the description
+kanboard-cli subtask from-checklist <task-id>
+
+# Later, after adding more checkbox items
+kanboard-cli subtask sync <task-id>
+```
+
+- `-`, `*`, `+` and numbered (`1.`, `1)`) items are recognised, including
+  nested and quoted items; checkboxes inside fenced code blocks are ignored.
+- An unlinked item whose title matches an existing subtask that is not linked
+  yet (case-insensitive) is linked to that subtask instead of creating a
+  duplicate. Use `--allow-duplicates` to always create new subtasks.
+- Items that link to a deleted subtask are reported as `missing` and left
+  unchanged.
+- Links in the older format (pointing to the subtask edit form) are still
+  recognised and rewritten to the current format.
+- `--skip-checked` ignores unlinked items that are already ticked.
+- `--user-id <id>` assigns all created subtasks to a user.
+- `--no-links` leaves the description unchanged. Without links, a later run
+  can only find already converted items by their title.
+- `--remove-from-description` removes converted lines from the description
+  instead of linking them.
+- The description is only saved if nobody changed it while the command was
+  running.
 
 ### Comments
 
@@ -255,6 +329,8 @@ kanboard-cli/
     │   ├── auth.go
     │   ├── project.go
     │   ├── task.go
+    │   ├── subtask.go
+    │   ├── checklist.go Markdown checkbox list parser
     │   ├── comment.go
     │   └── version.go
     └── version/
