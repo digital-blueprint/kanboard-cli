@@ -24,7 +24,7 @@
         {
           default =
             let
-              appVersion = "0.4.4";
+              appVersion = "0.5.0";
               module = "github.com/tu-graz/kanboard-cli";
             in
             pkgs.buildGoModule {
