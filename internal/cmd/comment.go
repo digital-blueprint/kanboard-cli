@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/olekukonko/tablewriter"
@@ -18,8 +19,103 @@ func newCommentCmd() *cobra.Command {
 	cmd.AddCommand(
 		newCommentListCmd(),
 		newCommentAddCmd(),
+		newCommentEditCmd(),
 		newCommentDeleteCmd(),
 	)
+	return cmd
+}
+
+func newCommentEditCmd() *cobra.Command {
+	var file string
+	var appendText string
+
+	cmd := &cobra.Command{
+		Use:     "edit <comment-id> [content]",
+		Aliases: []string{"update"},
+		Short:   "Change the text of a comment",
+		Long: `Change the text of a comment.
+
+The new text is taken from, in order of precedence: the [content] argument,
+--file (use "-" for stdin), --append, piped stdin, or $VISUAL/$EDITOR
+pre-filled with the current text.
+
+Kanboard only lets you edit your own comments when using a personal token.`,
+		Example: `  kanboard-cli comment edit 17 "Fixed typo"
+  kanboard-cli comment edit 17 --file comment.md
+  kanboard-cli comment edit 17 --append "Update: deployed."
+  kanboard-cli comment edit 17                # opens $EDITOR`,
+		Args: cobra.RangeArgs(1, 2),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			id, err := parseID(args[0], "comment ID")
+			if err != nil {
+				return err
+			}
+			sources := 0
+			for _, set := range []bool{len(args) == 2, cmd.Flags().Changed("file"), cmd.Flags().Changed("append")} {
+				if set {
+					sources++
+				}
+			}
+			if sources > 1 {
+				return fmt.Errorf("use only one of [content], --file, or --append")
+			}
+
+			client := newClient()
+			comment, err := client.GetComment(id)
+			if err != nil {
+				return err
+			}
+			if comment == nil {
+				return fmt.Errorf("comment %d not found", id)
+			}
+
+			var text string
+			switch {
+			case len(args) == 2:
+				text = args[1]
+			case cmd.Flags().Changed("file"):
+				if text, err = readTextFile(file); err != nil {
+					return err
+				}
+			case cmd.Flags().Changed("append"):
+				text = appendDescription(comment.Comment, appendText)
+			case !stdinIsTerminal():
+				if text, err = readAll(os.Stdin); err != nil {
+					return err
+				}
+			default:
+				if text, err = editInEditor(comment.Comment, "kanboard-comment-*.md"); err != nil {
+					return err
+				}
+			}
+			if strings.TrimSpace(text) == "" {
+				return fmt.Errorf(
+					"comment text cannot be empty (use 'comment delete' to remove it)",
+				)
+			}
+
+			changed := text != comment.Comment
+			if changed {
+				if err := client.UpdateComment(id, text); err != nil {
+					return fmt.Errorf("%w (you can only edit your own comments)", err)
+				}
+			}
+			if jsonOutput {
+				printJSON(map[string]interface{}{
+					"comment_id": id, "task_id": comment.TaskID, "updated": changed, "comment": text,
+				})
+				return nil
+			}
+			if changed {
+				fmt.Printf("Comment %d updated\n", id)
+			} else {
+				fmt.Printf("Comment %d unchanged\n", id)
+			}
+			return nil
+		},
+	}
+	cmd.Flags().StringVarP(&file, "file", "F", "", `Read the text from a file ("-" for stdin)`)
+	cmd.Flags().StringVar(&appendText, "append", "", "Append text to the comment")
 	return cmd
 }
 

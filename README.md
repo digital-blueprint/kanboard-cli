@@ -7,10 +7,10 @@ tasks, and comments directly from your terminal or scripts.
 
 ## Features
 
-- **Projects** — list, create, delete
-- **Tasks** — list with status, tag, and column filters; get, create, assign, delete, move (column/position), move to another project or swimlane, open, close
+- **Projects** — list, create, update (name, description, identifier, owner, dates, priorities, status, public access), delete
+- **Tasks** — list with status, tag, and column filters; get, create, delete; `task update` changes every task field (title, description, color, assignee, category, priority, complexity, reference, dates, time tracking, recurrence, tags), board placement, and status — for one or many tasks, with `--dry-run`; shortcuts for assign, move, open, close
 - **Subtasks** — list, get, add, update, mark done, delete; convert a Markdown checkbox list in a task description into subtasks
-- **Comments** — list, add, delete
+- **Comments** — list, add, edit, delete
 - **Secure credential storage** — API token is stored in the OS keyring (GNOME Keyring / libsecret on Linux, Keychain on macOS, Credential Manager on Windows); only the username is written to disk
 - **JSON output** — every command accepts `--json` for machine-readable output, suitable for agents and scripting
 - **Version info** — build-time version, commit, and date injection
@@ -115,7 +115,18 @@ kanboard-cli auth logout          # remove stored credentials
 kanboard-cli project list
 kanboard-cli project create "My Project" --description "Optional description"
 kanboard-cli project delete <project-id>
+
+# Change settings (project ID or name; only given flags are changed)
+kanboard-cli project update <project> --name "New name" --identifier SWS
+kanboard-cli project update <project> -d "New description"     # -F file.md, -F - for stdin
+kanboard-cli project update <project> --owner me --start-date 2026-10-01 --end-date none
+kanboard-cli project update <project> --priority-start 0 --priority-end 5 --priority-default 2
+kanboard-cli project update <project> --status inactive --public no
 ```
+
+`project update` needs the project manager role. Kanboard's `updateProject`
+API always turns off the "per-swimlane task limits" setting, so re-enable it
+in the web UI if you use it (`--status` and `--public` don't affect it).
 
 ### Tasks
 
@@ -133,14 +144,63 @@ kanboard-cli task list --project-id <id> --status closed --column 42
 # Show full task details (including subtasks)
 kanboard-cli task get <task-id>
 
-# Create a task
+# Create a task (project/column/swimlane/category/assignee by ID or name)
 kanboard-cli task create "Fix login bug" \
-  --project-id <id> \
-  --column-id <id> \
+  --project "Software Solutions" \
+  --column Backlog \
   --description "Steps to reproduce…" \
+  --assignee me --category Bug --priority 2 \
   --color red \
-  --due "2024-12-31 09:00"
+  --due "2026-12-31 09:00" \
+  --tag bug --tag frontend        # or: --tag bug,frontend
+```
 
+#### Editing tasks
+
+`task update` (alias `task edit`) changes one or more tasks. Only the flags you
+pass are changed, and fields that already have the requested value are skipped.
+
+| What                  | Flags                                                                                                                                                       |
+| --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Title                 | `--title "…"`                                                                                                                                               |
+| Description           | `-d "…"`, `-F file.md` (`-F -` = stdin), `-e` (open `$EDITOR`), `--append-description "…"`                                                                  |
+| Color                 | `--color red` (`yellow`, `blue`, `green`, `purple`, `red`, `orange`, `grey`, …)                                                                             |
+| Assignee              | `-a me`, `-a 7`, `-a "Bob Builder"`, `-a bob`, `-a none`                                                                                                    |
+| Category              | `--category Bug`, `--category 3`, `--category none`                                                                                                         |
+| Priority / complexity | `--priority 2`, `--complexity 5`                                                                                                                            |
+| Reference             | `--reference TICKET-123`                                                                                                                                    |
+| Dates                 | `--due 2026-10-15`, `--due "2026-10-15 14:00"`, `--start now`, `--due none`                                                                                 |
+| Time tracking         | `--estimate 1.5`, `--spent 90m` (hours, or `1h30m`)                                                                                                         |
+| Recurrence            | `--recurrence on\|off`, `--recurrence-trigger close\|first-column\|last-column`, `--recurrence-every 7d\|1m\|1y`, `--recurrence-base due-date\|action-date` |
+| Tags                  | `-t urgent` (add), `--untag later`, `--set-tags bug,ui`, `--clear-tags`                                                                                     |
+| Board placement       | `-p <project>`, `-c <column>`, `--swimlane <swimlane>`, `--position 1`                                                                                      |
+| Status                | `--status open\|closed`                                                                                                                                     |
+| Preview               | `-n` / `--dry-run`                                                                                                                                          |
+
+Values that can be removed accept `none`. Names (project, column, swimlane,
+category, user) are matched case-insensitively. Users can also be matched by a
+unique part of their name.
+
+```sh
+kanboard-cli task update 42 --title "New title" --priority 2 --due 2026-10-15
+kanboard-cli task update 42 -e                       # edit the description in $EDITOR
+kanboard-cli task update 42 --tag urgent --assignee me --column "In progress"
+kanboard-cli task update 41 42 43 --category Bug --tag sprint-7 --dry-run
+kanboard-cli task update 42 --column Done --status closed
+```
+
+Example output:
+
+```
+Task 42 updated:
+  priority:           0 → 2
+  category:           none → Bug (#3)
+  tags:               bug → bug, urgent
+```
+
+#### Other task commands
+
+```sh
 # Move within the same project board
 kanboard-cli task move <task-id> \
   --project-id <id> \
@@ -251,6 +311,9 @@ kanboard-cli subtask sync <task-id>
 ```sh
 kanboard-cli comment list <task-id>
 kanboard-cli comment add  <task-id> "This looks good!"
+kanboard-cli comment edit <comment-id> "Fixed typo"
+kanboard-cli comment edit <comment-id> --append "Update: deployed."
+kanboard-cli comment edit <comment-id>          # opens $VISUAL / $EDITOR
 kanboard-cli comment delete <comment-id>
 ```
 
@@ -271,6 +334,7 @@ kanboard-cli --json task list --project-id 1 | jq '.[].title'
 kanboard-cli --json task list --project-id 1 --tag bulletin --column Refinement | jq '.[].tags'
 kanboard-cli --json task get 42 | jq '{id, title, status: (if .is_active == "1" then "open" else "closed" end)}'
 kanboard-cli --json task assign 42 43 | jq '.[].task_id'
+kanboard-cli --json task update 42 43 --tag urgent | jq '.[] | {task_id, changes}'
 ```
 
 Mutating commands return a small confirmation object, e.g.:
@@ -329,6 +393,12 @@ kanboard-cli/
     │   ├── auth.go
     │   ├── project.go
     │   ├── task.go
+    │   ├── task_update.go  task update command
+    │   ├── task_fields.go  task field flags shared by create/update
+    │   ├── task_show.go    task get output
+    │   ├── fields.go       value parsing + name→ID lookups
+    │   ├── tags.go         tag helpers
+    │   ├── textinput.go    file/stdin/$EDITOR input
     │   ├── subtask.go
     │   ├── checklist.go Markdown checkbox list parser
     │   ├── comment.go

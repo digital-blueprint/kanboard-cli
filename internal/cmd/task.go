@@ -20,6 +20,7 @@ func newTaskCmd() *cobra.Command {
 		newTaskListCmd(),
 		newTaskGetCmd(),
 		newTaskCreateCmd(),
+		newTaskUpdateCmd(),
 		newTaskDeleteCmd(),
 		newTaskMoveCmd(),
 		newTaskMoveProjectCmd(),
@@ -300,24 +301,18 @@ func newTaskGetCmd() *cobra.Command {
 			}
 			t.Subtasks = subtasks
 
+			tags, err := client.GetTaskTags(id)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Warning: could not fetch tags: %v\n", err)
+			}
+			t.Tags = tags
+
 			if jsonOutput {
 				printJSON(t)
 				return nil
 			}
 
-			active := "open"
-			if t.IsActive.String() == "0" {
-				active = "closed"
-			}
-			fmt.Printf("ID:          %s\n", t.ID)
-			fmt.Printf("Title:       %s\n", t.Title)
-			fmt.Printf("Status:      %s\n", active)
-			fmt.Printf("Project:     %s\n", t.ProjectID)
-			fmt.Printf("Column:      %s\n", t.ColumnID)
-			fmt.Printf("Position:    %s\n", t.Position)
-			fmt.Printf("Color:       %s\n", t.ColorID)
-			fmt.Printf("Due:         %s\n", t.DateDue.Format("2006-01-02"))
-			fmt.Printf("Reference:   %s\n", t.Reference)
+			printTaskDetails(newLookup(client), t)
 			if t.Description != "" {
 				fmt.Printf("Description:\n%s\n", t.Description)
 			}
@@ -383,26 +378,58 @@ func newTaskAssignCmd() *cobra.Command {
 }
 
 func newTaskCreateCmd() *cobra.Command {
-	var projectID, columnID int
-	var description, color, dateDue string
+	var project, column, swimlane string
+	var fields taskFieldFlags
 
 	cmd := &cobra.Command{
 		Use:   "create <title>",
 		Short: "Create a new task",
-		Args:  cobra.ExactArgs(1),
+		Long: `Create a new task. Accepts the same field flags as "task update".
+
+Projects, columns, swimlanes, users, and categories can be given by ID or by
+name (case-insensitive). Assignees also accept "me" and usernames.`,
+		Example: `  kanboard-cli task create "Fix login bug" -p 12 --column Backlog
+  kanboard-cli task create "Fix login bug" -p "Software Solutions" \
+    --assignee me --category Bug --priority 2 --tag bug,ui --due 2026-10-15
+  kanboard-cli task create "Write docs" -p 12 -e   # description in $EDITOR`,
+		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if projectID == 0 {
-				return fmt.Errorf("--project-id is required")
+			title := strings.TrimSpace(args[0])
+			if title == "" {
+				return fmt.Errorf("title cannot be empty")
 			}
+			if strings.TrimSpace(project) == "" {
+				return fmt.Errorf("--project is required")
+			}
+			if err := fields.validate(); err != nil {
+				return err
+			}
+			if err := fields.loadDescriptionFile(); err != nil {
+				return err
+			}
+
 			client := newClient()
-			id, err := client.CreateTask(api.CreateTaskParams{
-				Title:       args[0],
-				ProjectID:   projectID,
-				ColumnID:    columnID,
-				Description: description,
-				ColorID:     color,
-				DateDue:     dateDue,
-			})
+			l := newLookup(client)
+			projectID, err := resolveProjectID(client, project)
+			if err != nil {
+				return err
+			}
+			params := api.CreateTaskParams{Title: title, ProjectID: projectID}
+			if strings.TrimSpace(column) != "" {
+				if params.ColumnID, err = l.resolveColumn(projectID, column); err != nil {
+					return err
+				}
+			}
+			if strings.TrimSpace(swimlane) != "" {
+				if params.SwimlaneID, err = l.resolveSwimlane(projectID, swimlane); err != nil {
+					return err
+				}
+			}
+			if err := fields.buildCreate(l, &params); err != nil {
+				return err
+			}
+
+			id, err := client.CreateTask(params)
 			if err != nil {
 				return err
 			}
@@ -414,11 +441,15 @@ func newTaskCreateCmd() *cobra.Command {
 			return nil
 		},
 	}
-	cmd.Flags().IntVarP(&projectID, "project-id", "p", 0, "Project ID (required)")
-	cmd.Flags().IntVarP(&columnID, "column-id", "c", 0, "Column ID")
-	cmd.Flags().StringVarP(&description, "description", "d", "", "Task description (Markdown)")
-	cmd.Flags().StringVar(&color, "color", "", "Color ID (e.g. blue, green, red, yellow)")
-	cmd.Flags().StringVar(&dateDue, "due", "", "Due date (YYYY-MM-DD HH:MM)")
+	fl := cmd.Flags()
+	fl.StringVarP(&project, "project", "p", "", "Project ID or name (required)")
+	fl.StringVar(&project, "project-id", "", "Alias for --project")
+	_ = fl.MarkHidden("project-id")
+	fl.StringVarP(&column, "column", "c", "", "Column ID or name (default: first column)")
+	fl.StringVar(&column, "column-id", "", "Alias for --column")
+	_ = fl.MarkHidden("column-id")
+	fl.StringVar(&swimlane, "swimlane", "", "Swimlane ID or name (default: first swimlane)")
+	fields.register(cmd, false)
 	return cmd
 }
 

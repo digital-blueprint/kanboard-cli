@@ -7,6 +7,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `task update <task-id> [task-id...]` (alias `task edit`) to change any task
+  field on one or more tasks: `--title`, description (`-d`, `-F` file/stdin,
+  `-e` editor, `--append-description`), `--color`, `--assignee`, `--category`,
+  `--priority`, `--complexity`, `--reference`, `--due`, `--start`,
+  `--estimate`, `--spent`, recurrence (`--recurrence`, `--recurrence-trigger`,
+  `--recurrence-every`, `--recurrence-base`), tags (`--tag`, `--untag`,
+  `--set-tags`, `--clear-tags`), board placement (`--project`, `--column`,
+  `--swimlane`, `--position`), and `--status open|closed`. Only given flags
+  are changed, unchanged values are skipped, `none` clears a value, and
+  `--dry-run` previews the changes. Projects, columns, swimlanes, categories,
+  and users can be given by ID or name; assignees also accept `me` and
+  usernames.
+- `task create` accepts the same field flags as `task update`, plus
+  `--swimlane`. `--project`/`-p` and `--column`/`-c` now accept names
+  (`--project-id` and `--column-id` still work).
+- `comment edit <comment-id> [content]` (alias `update`) with `--file`,
+  `--append`, piped stdin, or `$VISUAL`/`$EDITOR`.
+- `project update <project>` (alias `edit`) to change name, description,
+  identifier, email, owner, start/end date, priority range, status
+  (active/inactive), and public access, with `--dry-run`.
+
+### Changed
+
+- `task get` shows assignee, category, swimlane, priority, complexity, start
+  date, time tracking, recurrence, tags, and the task URL, with names instead
+  of IDs where possible. `--json` output includes these fields and `tags`.
+- Dates given without a time (`--due 2026-10-15`) are sent as midnight;
+  previously Kanboard filled in the current time of day.
+
+### Fixed
+
+- Reading the tags of a task without tags no longer fails (Kanboard returns
+  an empty JSON array instead of an object), which affected
+  `task list --tag`.
+- Looking up a project by a name that does not exist now reports
+  "project not found" instead of a JSON decoding error.
+- `task create` now reports an error when Kanboard rejects the task instead of
+  a JSON decoding error.
+
 ## [0.5.0] - 2026-09-30
 
 ### Added
