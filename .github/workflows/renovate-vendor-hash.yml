@@ -1,0 +1,67 @@
+name: Update Nix vendorHash
+
+# Renovate (hosted app) cannot run post-upgrade commands, so this workflow
+# recomputes the buildGoModule vendorHash in flake.nix whenever Renovate
+# changes go.mod/go.sum, and pushes the fix back to the Renovate branch.
+
+on:
+  push:
+    branches: ["renovate/**"]
+    paths: ["go.mod", "go.sum"]
+  workflow_dispatch:
+
+concurrency:
+  group: vendor-hash-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  update-vendor-hash:
+    name: Update vendorHash
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@v31
+
+      - name: Compute vendorHash
+        id: hash
+        run: |
+          set -euo pipefail
+          old=$(grep -oP 'vendorHash = "\K[^"]*' flake.nix)
+
+          # An empty hash makes Nix fail and report the correct one.
+          sed -i 's|vendorHash = "[^"]*";|vendorHash = "";|' flake.nix
+          new=$(nix build .#default --no-link 2>&1 | grep -oP 'got:\s+\Ksha256-\S+' || true)
+
+          if [ -z "$new" ]; then
+            echo "::error::Could not determine vendorHash from nix build output"
+            exit 1
+          fi
+
+          sed -i "s|vendorHash = \"[^\"]*\";|vendorHash = \"${new}\";|" flake.nix
+          echo "old=$old" >> "$GITHUB_OUTPUT"
+          echo "new=$new" >> "$GITHUB_OUTPUT"
+
+      - name: Verify build
+        if: steps.hash.outputs.old != steps.hash.outputs.new
+        run: nix build .#default --print-build-logs
+
+      - name: Commit and push
+        if: steps.hash.outputs.old != steps.hash.outputs.new
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -am "flake: update vendorHash"
+          git push
+          # Pushes made with GITHUB_TOKEN don't trigger workflows, so start
+          # the checks for the new commit explicitly.
+          gh workflow run flake-build.yml --ref "$GITHUB_REF_NAME"
+          gh workflow run ci.yml --ref "$GITHUB_REF_NAME"
