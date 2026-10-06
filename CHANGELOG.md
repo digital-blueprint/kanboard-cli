@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- `auth login` now echoes `*` for each character typed at the API token prompt,
+  giving visual feedback without revealing the token. Backspace and Ctrl+U
+  work as usual.
+
 ## [0.6.0] - 2026-10-01
 
 ### Added

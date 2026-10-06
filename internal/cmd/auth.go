@@ -2,10 +2,12 @@ package cmd
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
+	"io"
 	"os"
 	"strings"
-	"syscall"
+	"unicode/utf8"
 
 	"github.com/spf13/cobra"
 	"github.com/tu-graz/kanboard-cli/internal/config"
@@ -75,17 +77,21 @@ access token generated in your profile.`,
 
 			if token == "" {
 				fmt.Print("API token: ")
-				raw, err := term.ReadPassword(int(syscall.Stdin))
-				fmt.Println()
-				if err != nil {
+				fd := int(os.Stdin.Fd())
+				if term.IsTerminal(fd) {
+					raw, err := readMasked(fd)
+					fmt.Println()
+					if err != nil {
+						return err
+					}
+					token = strings.TrimSpace(raw)
+				} else {
 					// Fallback for non-terminal environments (pipes, tests).
-					line, err2 := reader.ReadString('\n')
-					if err2 != nil {
-						return err2
+					line, err := reader.ReadString('\n')
+					if err != nil {
+						return err
 					}
 					token = strings.TrimSpace(line)
-				} else {
-					token = strings.TrimSpace(string(raw))
 				}
 			}
 
@@ -158,6 +164,55 @@ func newAuthLogoutCmd() *cobra.Command {
 			fmt.Println("Credentials removed from keyring.")
 			return nil
 		},
+	}
+}
+
+// readMasked reads a line from the terminal in raw mode, echoing '*' for each
+// character so the user gets visual feedback without revealing the secret.
+func readMasked(fd int) (string, error) {
+	oldState, err := term.MakeRaw(fd)
+	if err != nil {
+		return "", err
+	}
+	defer func() { _ = term.Restore(fd, oldState) }()
+
+	var input []rune
+	buf := make([]byte, 256)
+	for {
+		n, err := os.Stdin.Read(buf)
+		if err != nil {
+			return "", err
+		}
+		chunk := buf[:n]
+		for len(chunk) > 0 {
+			r, size := utf8.DecodeRune(chunk)
+			chunk = chunk[size:]
+			switch {
+			case r == '\r' || r == '\n':
+				return string(input), nil
+			case r == 3: // Ctrl+C
+				return "", errors.New("interrupted")
+			case r == 4: // Ctrl+D
+				if len(input) == 0 {
+					return "", io.EOF
+				}
+			case r == 127 || r == 8: // Backspace
+				if len(input) > 0 {
+					input = input[:len(input)-1]
+					fmt.Print("\b \b")
+				}
+			case r == 21: // Ctrl+U: clear line
+				fmt.Print(strings.Repeat("\b \b", len(input)))
+				input = input[:0]
+			case r == 27: // Escape sequence (arrow keys etc.): ignore rest
+				chunk = nil
+			case r < 32 || r == utf8.RuneError:
+				// Ignore other control characters.
+			default:
+				input = append(input, r)
+				fmt.Print("*")
+			}
+		}
 	}
 }
 
