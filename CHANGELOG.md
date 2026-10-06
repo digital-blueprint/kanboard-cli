@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.1] - 2026-10-06
+
 ### Changed
 
 - `auth login` now echoes `*` for each character typed at the API token prompt,
@@ -156,7 +158,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `README.md` with installation, configuration, usage, and development docs
 - `LICENSE` — GNU General Public License v3.0
 
-[Unreleased]: https://github.com/tu-graz/kanboard-cli/compare/v0.6.0...HEAD
+[Unreleased]: https://github.com/tu-graz/kanboard-cli/compare/v0.6.1...HEAD
+[0.6.1]: https://github.com/tu-graz/kanboard-cli/compare/v0.6.0...v0.6.1
 [0.6.0]: https://github.com/tu-graz/kanboard-cli/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/tu-graz/kanboard-cli/compare/v0.4.4...v0.5.0
 [0.4.4]: https://github.com/tu-graz/kanboard-cli/compare/v0.4.0...v0.4.4
