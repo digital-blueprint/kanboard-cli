@@ -57,6 +57,7 @@ type Task struct {
 	URL                 string            `json:"url,omitempty"`
 	Tags                map[string]string `json:"tags,omitempty"`
 	Subtasks            []Subtask         `json:"subtasks,omitempty"`
+	Attachments         []TaskFile        `json:"attachments,omitempty"`
 }
 
 // Category represents a project category.

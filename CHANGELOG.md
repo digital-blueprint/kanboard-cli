@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `attachment list <task-id>` and `attachment get <file-id>` for attachment
+  metadata, with readable tables or `--json` output.
+- `attachment download <file-id>` with `--output` (or `-o -` for raw stdout),
+  and `attachment download-all <task-id>` with `--output-dir`. JSON output
+  reports local file paths and byte counts instead of binary content. Downloads
+  sanitize server filenames and refuse to overwrite existing files; bulk
+  downloads use ID-prefixed names and report partial failures.
+- `task get` includes attachment metadata alongside subtasks and tags.
+
 ## [0.6.1] - 2026-10-06
 
 ### Changed

@@ -307,6 +307,12 @@ func newTaskGetCmd() *cobra.Command {
 			}
 			t.Tags = tags
 
+			attachments, err := client.GetAllTaskFiles(id)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Warning: could not fetch attachments: %v\n", err)
+			}
+			t.Attachments = attachments
+
 			if jsonOutput {
 				printJSON(t)
 				return nil
@@ -318,7 +324,13 @@ func newTaskGetCmd() *cobra.Command {
 			}
 			if len(t.Subtasks) > 0 {
 				fmt.Printf("Subtasks:\n")
-				return renderSubtaskTable(t.Subtasks)
+				if err := renderSubtaskTable(t.Subtasks); err != nil {
+					return err
+				}
+			}
+			if len(t.Attachments) > 0 {
+				fmt.Printf("Attachments (use 'attachment download <file-id>' to fetch):\n")
+				return renderAttachmentTable(t.Attachments)
 			}
 			return nil
 		},

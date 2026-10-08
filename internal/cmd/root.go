@@ -44,7 +44,7 @@ func NewRootCmd() *cobra.Command {
 	root := &cobra.Command{
 		Use:   "kanboard-cli",
 		Short: "A CLI client for Kanboard",
-		Long: `kanboard-cli lets you manage projects, tasks, subtasks, and comments on a
+		Long: `kanboard-cli lets you manage projects, tasks, subtasks, comments, and attachments on a
 Kanboard instance from the command line.
 
 The server URL and authentication credentials are configured by running
@@ -61,6 +61,7 @@ server URL.`,
 		newTaskCmd(),
 		newSubtaskCmd(),
 		newCommentCmd(),
+		newAttachmentCmd(),
 		newVersionCmd(),
 	)
 

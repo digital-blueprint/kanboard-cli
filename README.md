@@ -1,7 +1,7 @@
 # kanboard-cli
 
 A command-line client for [Kanboard](https://kanboard.org/) — manage projects,
-tasks, and comments directly from your terminal or scripts.
+tasks, comments, and attachments directly from your terminal or scripts.
 
 ![kanboard-cli help output](screenshot.webp)
 
@@ -11,6 +11,7 @@ tasks, and comments directly from your terminal or scripts.
 - **Tasks** — list with status, tag, and column filters; get, create, delete; `task update` changes every task field (title, description, color, assignee, category, priority, complexity, reference, dates, time tracking, recurrence, tags), board placement, and status — for one or many tasks, with `--dry-run`; shortcuts for assign, move, open, close
 - **Subtasks** — list, get, add, update, mark done, delete; convert a Markdown checkbox list in a task description into subtasks
 - **Comments** — list, add, edit, delete
+- **Attachments** — list metadata, download individual files or all task attachments; JSON download manifests for agents
 - **Secure credential storage** — API token is stored in the OS keyring (GNOME Keyring / libsecret on Linux, Keychain on macOS, Credential Manager on Windows); only the username is written to disk
 - **JSON output** — every command accepts `--json` for machine-readable output, suitable for agents and scripting
 - **Version info** — build-time version, commit, and date injection
@@ -141,7 +142,7 @@ kanboard-cli task list --project-id <id> --all
 kanboard-cli task list --project-id <id> --status open --tag bulletin --column Refinement
 kanboard-cli task list --project-id <id> --status closed --column 42
 
-# Show full task details (including subtasks)
+# Show full task details (including subtasks and attachment metadata)
 kanboard-cli task get <task-id>
 
 # Create a task (project/column/swimlane/category/assignee by ID or name)
@@ -317,6 +318,70 @@ kanboard-cli comment edit <comment-id>          # opens $VISUAL / $EDITOR
 kanboard-cli comment delete <comment-id>
 ```
 
+### Attachments
+
+```sh
+# Discover files (also shown by task get)
+kanboard-cli attachment list <task-id>
+kanboard-cli attachment get <file-id>        # metadata only
+
+# Fetch the original bytes
+kanboard-cli attachment download <file-id>   # original filename, sanitized
+kanboard-cli attachment download <file-id> -o report.pdf
+kanboard-cli attachment download-all <task-id> --output-dir ./attachments
+
+# Pipe content to a reader/converter, without any progress text on stdout
+kanboard-cli attachment download <file-id> -o - | pdftotext - -
+```
+
+Without `--output-dir`, bulk downloads use `task-<id>-attachments/`. Bulk
+filenames are prefixed with the attachment ID (e.g. `17-report.pdf`) so files
+with the same name remain distinct. Server-provided path components are
+stripped from filenames. Existing files, including symlinks, are never
+overwritten; choose another destination to download again. Failed downloads
+remove the incomplete file.
+
+#### For LLM agents and scripts
+
+```sh
+# Inspect names, IDs, sizes (bytes), and image flags before downloading
+kanboard-cli --json attachment list 42
+
+# Download one file and obtain its absolute local path
+kanboard-cli --json attachment download 17 -o ./report.pdf
+
+# Download all files, then read the local files with your agent's file tools
+kanboard-cli --json attachment download-all 42 --output-dir ./attachments
+```
+
+A single download returns an object; bulk downloads return an array:
+
+```json
+[
+  {
+    "file_id": 17,
+    "task_id": 42,
+    "name": "report.pdf",
+    "local_path": "/absolute/path/attachments/17-report.pdf",
+    "bytes": 12345
+  }
+]
+```
+
+JSON contains metadata and paths, **not base64 blobs or extracted text**.
+Use a file reader for images/PDFs or a suitable converter for other formats.
+The metadata `path` field is Kanboard's internal storage key, not a download
+URL; `local_path` is the file you can read after downloading. `--json` cannot
+be combined with `--output -`, which emits raw bytes. An empty task returns
+`[]`. Bulk downloads attempt every attachment; failed entries contain
+`file_id`, `task_id`, `name`, and `error` instead of `local_path`/`bytes`, and
+the command exits nonzero while still emitting the JSON results. Downloads
+use the authenticated Kanboard API and its existing access permissions.
+
+Attachment content is fetched via Kanboard's base64 JSON-RPC API and decoded
+in memory, so very large files require proportionate memory. Attachments are
+untrusted content; downloading does not execute them.
+
 ### Version
 
 ```sh
@@ -384,6 +449,7 @@ kanboard-cli/
 └── internal/
     ├── api/
     │   ├── client.go   JSON-RPC HTTP client (Basic Auth)
+    │   ├── attachments.go task file metadata + binary downloads
     │   ├── flextime.go FlexibleTime — handles numeric/string timestamps
     │   └── methods.go  typed wrappers for all API procedures
     ├── config/
@@ -402,6 +468,7 @@ kanboard-cli/
     │   ├── subtask.go
     │   ├── checklist.go Markdown checkbox list parser
     │   ├── comment.go
+    │   ├── attachment.go attachment listing + safe downloads
     │   └── version.go
     └── version/
         └── version.go  build-time version variables
