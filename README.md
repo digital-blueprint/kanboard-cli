@@ -527,17 +527,21 @@ kanboard-cli/
 
 ## Releasing
 
-Push to the `release` branch to trigger the GitHub Actions release workflow.
+Push a `v*` version tag to trigger the GitHub Actions release workflow.
 GoReleaser will cross-compile for Linux, macOS, and Windows, create a GitHub
 Release, and upload archives with checksums.
 
-Tag the commit with `vX.Y.Z` before pushing to produce a properly versioned
-release:
+Update `appVersion` in `flake.nix` and move the unreleased changelog entries
+into a dated version section. Commit these changes, then create and push the
+matching tag to produce a properly versioned release:
 
 ```sh
-git tag v1.0.0
-git push origin v1.0.0:release
+git tag -a v0.8.0 -m "kanboard-cli 0.8.0"
+git push origin main
+git push origin v0.8.0
 ```
+
+Manual workflow dispatch builds snapshot artifacts without publishing a release.
 
 ## License
 
