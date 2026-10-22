@@ -10,6 +10,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/spf13/cobra"
+	"github.com/tu-graz/kanboard-cli/internal/api"
 	"github.com/tu-graz/kanboard-cli/internal/config"
 	"golang.org/x/term"
 )
@@ -30,11 +31,11 @@ func newAuthLoginCmd() *cobra.Command {
 		Use:   "login",
 		Short: "Store API credentials in the OS keyring",
 		Long: `Store your Kanboard API token securely in the OS keyring
-(libsecret/GNOME Keyring on Linux, Keychain on macOS,
+(Secret Service/GNOME Keyring/KDE KSecretD on Linux, Keychain on macOS,
 Credential Manager on Windows).
 
 The server URL and username are stored in a plain config file; only the token is
-kept in the keyring.
+kept in the keyring. Credentials are verified with the server before saving.
 
 For the application API use username "jsonrpc" and the token from
 Settings > API.  For the user API use your username and a personal
@@ -99,10 +100,16 @@ access token generated in your profile.`,
 				return fmt.Errorf("token cannot be empty")
 			}
 
+			if err := api.NewClient(serverURL, username, token).VerifyAuthentication(); err != nil {
+				return fmt.Errorf("credentials not saved: %w", err)
+			}
 			if err := config.SaveCredentials(serverURL, username, token); err != nil {
 				return err
 			}
-			fmt.Println("Settings saved and credentials stored in OS keyring.")
+			fmt.Println(
+				"Authentication verified. Settings saved and credentials stored in OS keyring.",
+			)
+			fmt.Println("Location:", config.KeyringLocation(username))
 			return nil
 		},
 	}
@@ -115,25 +122,41 @@ access token generated in your profile.`,
 }
 
 func newAuthStatusCmd() *cobra.Command {
-	return &cobra.Command{
+	var offline bool
+	cmd := &cobra.Command{
 		Use:   "status",
-		Short: "Show current authentication status",
+		Short: "Verify authentication and show the credential source",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			serverURL, _ := config.URL()
+			serverURL, urlErr := config.URL()
 			username, token, err := config.Credentials()
+			stored := err == nil
+			if err == nil {
+				err = urlErr
+			}
+			checked := !offline && err == nil
+			if checked {
+				err = api.NewClient(serverURL, username, token).VerifyAuthentication()
+			}
+			source := config.CredentialSource()
 
 			if jsonOutput {
 				out := map[string]interface{}{
-					"server":        serverURL,
-					"username":      username,
-					"token_masked":  maskToken(token),
-					"authenticated": err == nil,
+					"server":                serverURL,
+					"username":              username,
+					"token_masked":          maskToken(token),
+					"credentials_available": stored,
+					"checked":               checked,
+					"authenticated":         checked && err == nil,
+					"source":                source,
+				}
+				if source == "keyring" && stored {
+					out["keyring_location"] = config.KeyringLocation(username)
 				}
 				if err != nil {
 					out["error"] = err.Error()
 				}
 				printJSON(out)
-				return nil
+				return err
 			}
 
 			if serverURL == "" {
@@ -141,16 +164,27 @@ func newAuthStatusCmd() *cobra.Command {
 			} else {
 				fmt.Println("Server:  ", serverURL)
 			}
-			if err != nil {
-				fmt.Println("Credentials:", err)
-				return nil
+			if stored {
+				fmt.Println("Username:", username)
+				fmt.Println("Token:   ", maskToken(token))
 			}
-			fmt.Println("Username:", username)
-			fmt.Println("Token:   ", maskToken(token))
-			fmt.Println("Source:   keyring")
-			return nil
+			fmt.Println("Source:  ", source)
+			if source == "keyring" && stored {
+				fmt.Println("Location:", config.KeyringLocation(username))
+			}
+			if err != nil {
+				fmt.Println("Authentication:", err)
+			} else if offline {
+				fmt.Println("Authentication: not checked (--offline)")
+			} else {
+				fmt.Println("Authentication: verified")
+			}
+			return err
 		},
 	}
+	cmd.Flags().
+		BoolVar(&offline, "offline", false, "Show local credential information without contacting the server")
+	return cmd
 }
 
 func newAuthLogoutCmd() *cobra.Command {
