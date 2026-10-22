@@ -29,10 +29,10 @@ func newProjectCmd() *cobra.Command {
 func newProjectListCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "list",
-		Short: "List all projects",
+		Short: "List accessible projects",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			client := newClient()
-			projects, err := client.GetAllProjects()
+			projects, err := client.GetProjects()
 			if err != nil {
 				return err
 			}

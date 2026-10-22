@@ -135,6 +135,36 @@ type Me struct {
 
 // ---- Project methods --------------------------------------------------------
 
+// GetProjects lists projects accessible with the configured credentials.
+// The application API can list all projects; personal accounts must use the
+// current-user API, even if they happen to have administrator privileges.
+func (c *Client) GetProjects() ([]Project, error) {
+	if c.username == "jsonrpc" {
+		return c.GetAllProjects()
+	}
+	result := []Project{}
+	if err := c.Call("getMyProjects", nil, &result); err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+// VerifyAuthentication uses a read-only procedure available to the credential type.
+func (c *Client) VerifyAuthentication() error {
+	if c.username == "jsonrpc" {
+		var version string
+		return c.Call("getVersion", nil, &version)
+	}
+	me, err := c.GetMe()
+	if err != nil {
+		return err
+	}
+	if me == nil || me.ID.String() == "" {
+		return fmt.Errorf("authentication check returned no current user")
+	}
+	return nil
+}
+
 func (c *Client) GetAllProjects() ([]Project, error) {
 	var result []Project
 	if err := c.Call("getAllProjects", nil, &result); err != nil {

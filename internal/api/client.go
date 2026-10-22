@@ -85,7 +85,10 @@ func (c *Client) Call(method string, params interface{}, out interface{}) error 
 		return fmt.Errorf("authentication failed (401): check your token and username")
 	}
 	if resp.StatusCode == http.StatusForbidden {
-		return fmt.Errorf("access forbidden (403): insufficient permissions")
+		return fmt.Errorf(
+			"access forbidden (403): API method %q was denied; check account permissions and server/proxy API access",
+			method,
+		)
 	}
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("unexpected HTTP status: %s", resp.Status)
