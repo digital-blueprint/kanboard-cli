@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 
 	"github.com/zalando/go-keyring"
 )
@@ -78,13 +79,32 @@ func saveFileConfig(cfg *fileConfig) error {
 // SaveCredentials stores the server URL and username in the config file and the token
 // securely in the OS keyring.
 func SaveCredentials(serverURL, username, token string) error {
-	if err := saveFileConfig(&fileConfig{URL: serverURL, Username: username}); err != nil {
-		return err
-	}
 	if err := keyring.Set(keyringService, username, token); err != nil {
 		return fmt.Errorf("store token in keyring: %w", err)
 	}
-	return nil
+	return saveFileConfig(&fileConfig{URL: serverURL, Username: username})
+}
+
+// CredentialSource describes the effective token source without exposing it.
+func CredentialSource() string {
+	if os.Getenv(EnvToken) != "" {
+		return "environment (KANBOARD_TOKEN)"
+	}
+	return "keyring"
+}
+
+// KeyringLocation describes how to find the stored entry with a keyring manager.
+func KeyringLocation(username string) string {
+	if runtime.GOOS == "linux" {
+		return fmt.Sprintf(
+			"Secret Service login collection; label: Password for '%s' on '%s'; attributes: service=%s, username=%s (use Seahorse/KeepSecret if KWallet Manager does not show it)",
+			username,
+			keyringService,
+			keyringService,
+			username,
+		)
+	}
+	return fmt.Sprintf("OS keyring; service: %s; username: %s", keyringService, username)
 }
 
 // DeleteCredentials removes the stored credentials.
@@ -97,8 +117,10 @@ func DeleteCredentials() error {
 	if username == "" {
 		username = "jsonrpc"
 	}
-	// Best-effort keyring deletion; ignore "not found" errors.
-	_ = keyring.Delete(keyringService, username)
+	if err := keyring.Delete(keyringService, username); err != nil &&
+		!errors.Is(err, keyring.ErrNotFound) {
+		return fmt.Errorf("delete token from keyring: %w", err)
+	}
 	cfg.Username = ""
 	return saveFileConfig(cfg)
 }
