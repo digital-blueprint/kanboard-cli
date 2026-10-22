@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Project listing uses `getMyProjects` for personal accounts instead of the
+  privileged `getAllProjects` procedure; application credentials still list all projects.
+- Login verifies server authentication before saving credentials. Status verifies
+  authentication, returns errors on failure, and correctly reports environment overrides.
+- Keyring write/delete failures no longer overwrite or clear the saved configuration.
+- HTTP 403 errors identify the denied API method and mention server/proxy restrictions.
+
+### Added
+
+- `auth status --offline` for local credential inspection, keyring entry location
+  details, and KDE Secret Service/KSecretD troubleshooting documentation.
+
 ## [0.7.0] - 2026-10-08
 
 ### Added

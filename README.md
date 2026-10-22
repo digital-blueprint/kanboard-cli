@@ -12,17 +12,17 @@ tasks, comments, and attachments directly from your terminal or scripts.
 - **Subtasks** — list, get, add, update, mark done, delete; convert a Markdown checkbox list in a task description into subtasks
 - **Comments** — list, add, edit, delete
 - **Attachments** — list metadata, download individual files or all task attachments; JSON download manifests for agents
-- **Secure credential storage** — API token is stored in the OS keyring (GNOME Keyring / libsecret on Linux, Keychain on macOS, Credential Manager on Windows); only the username is written to disk
+- **Secure credential storage** — API token is stored in the OS keyring (Secret Service on Linux, Keychain on macOS, Credential Manager on Windows); only the URL and username are written to disk
 - **JSON output** — every command accepts `--json` for machine-readable output, suitable for agents and scripting
 - **Version info** — build-time version, commit, and date injection
 
 ## Requirements
 
-| Platform | Keyring backend                                  |
-| -------- | ------------------------------------------------ |
-| Linux    | libsecret / GNOME Keyring (or KWallet via D-Bus) |
-| macOS    | macOS Keychain Services                          |
-| Windows  | Windows Credential Manager                       |
+| Platform | Keyring backend                                              |
+| -------- | ------------------------------------------------------------ |
+| Linux    | Secret Service via D-Bus (GNOME Keyring, KDE KSecretD, etc.) |
+| macOS    | macOS Keychain Services                                      |
+| Windows  | Windows Credential Manager                                   |
 
 A running [Kanboard](https://github.com/kanboard/kanboard) instance with API access enabled.
 
@@ -67,6 +67,9 @@ You will be prompted for:
 
 The server URL and username are stored in `$XDG_CONFIG_HOME/kanboard-cli/config.json`.
 The token is stored **only** in the OS keyring — never in a plain-text file.
+Login verifies credentials with a read-only API request before saving them.
+Use your own username with a personal token; the default `jsonrpc` username
+only works with the application API token, not a personal token.
 
 You can also pass the URL non-interactively:
 
@@ -93,6 +96,44 @@ kanboard-cli project list
 
 Setting `KANBOARD_TOKEN` bypasses the keyring entirely.
 
+### Finding the token on KDE/Linux
+
+Run `kanboard-cli auth status --offline` to see the effective username, token
+source, and keyring entry label without contacting the server. Environment
+variables take precedence over saved credentials; `auth status` reports this
+instead of always claiming the token came from the keyring.
+
+On Linux, the CLI uses `org.freedesktop.secrets` (the Secret Service API), not
+the legacy KWallet API. On newer KDE versions, **KSecretD** provides this API.
+KWallet Manager can omit entries created through Secret Service, so an empty
+search there does not mean the token is missing.
+
+Use a Secret Service manager such as **Seahorse (Passwords and Keys)** or
+**KeepSecret**. Open/unlock the login collection (usually **kdewallet** on KDE)
+and search for `kanboard-cli`. The entry label is
+`Password for '<username>' on 'kanboard-cli'`, with attributes
+`service=kanboard-cli` and `username=<username>`.
+
+To confirm an entry exists **without printing the token**:
+
+```sh
+busctl --user call org.freedesktop.secrets /org/freedesktop/secrets \
+  org.freedesktop.Secret.Service SearchItems 'a{ss}' 1 service kanboard-cli
+```
+
+The result contains unlocked and locked item paths. For example, an item in
+`/org/freedesktop/secrets/collection/kdewallet/...` is stored in `kdewallet`.
+
+If you deliberately want to display the token locally, `secret-tool` (from
+libsecret) can retrieve it:
+
+```sh
+secret-tool lookup service kanboard-cli username '<username>'
+```
+
+**This prints the full secret.** Do not paste its output into chat, logs, or bug
+reports. No token migration or second login is necessary to use these managers.
+
 ## Usage
 
 ```
@@ -106,9 +147,14 @@ pretty-printed JSON instead of a human-readable table.
 
 ```sh
 kanboard-cli auth login           # store credentials in OS keyring
-kanboard-cli auth status          # show server URL and masked token
+kanboard-cli auth status          # verify server authentication; show source and masked token
+kanboard-cli auth status --offline # show local source and keyring location only
 kanboard-cli auth logout          # remove stored credentials
 ```
+
+`auth status` exits nonzero if credentials are missing or server verification
+fails. Its JSON output distinguishes `credentials_available`, `checked`, and
+`authenticated`; offline status never claims server authentication was verified.
 
 ### Projects
 
@@ -124,6 +170,11 @@ kanboard-cli project update <project> --owner me --start-date 2026-10-01 --end-d
 kanboard-cli project update <project> --priority-start 0 --priority-end 5 --priority-default 2
 kanboard-cli project update <project> --status inactive --public no
 ```
+
+With personal credentials, `project list` uses `getMyProjects` and shows your
+accessible active projects. With application (`jsonrpc`) credentials, it uses
+`getAllProjects`. A 403 reports the denied API method; server/proxy restrictions
+can also cause this status, not just account permissions.
 
 `project update` needs the project manager role. Kanboard's `updateProject`
 API always turns off the "per-swimlane task limits" setting, so re-enable it
