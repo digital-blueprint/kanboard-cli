@@ -32,7 +32,7 @@
               version = appVersion;
               src = ./.;
 
-              vendorHash = "sha256-w138oQqba2GDb+d5SNruFtMidpKlgK4fygZwu+bMqdk=";
+              vendorHash = "sha256-EwpDhozaBN0IBu0ZC2D6dXZDjAx7g2YCWHJ+RjSKyv4=";
 
               ldflags = [
                 "-s"
